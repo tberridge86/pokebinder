@@ -106,7 +106,7 @@ header{background:var(--red);border-bottom:3px solid var(--red-dark);padding:0 2
 .binder-page{background:#1a0f0f;border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;margin-bottom:20px;}
 @keyframes fadeSlide{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
 .page-inner{display:grid;grid-template-columns:repeat(3,1fr);padding:20px;gap:14px;animation:fadeSlide 0.2s ease;}
-.card-slot{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid rgba(255,255,255,0.05);transition:border-color 0.25s,transform 0.15s,box-shadow 0.2s;aspect-ratio:2/2.8;background:#110909;}
+.card-slot{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid rgba(255,255,255,0.05);transition:border-color 0.25s,transform 0.15s,box-shadow 0.2s;aspect-ratio:2/2.8;background:#110909;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .card-slot:hover{transform:translateY(-3px) scale(1.01);border-color:rgba(255,215,0,0.3);}
 .card-slot.owned{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,0.12);}
 .card-slot img{width:100%;height:100%;object-fit:cover;display:block;transition:filter 0.35s ease;filter:grayscale(1) brightness(0.32);}
@@ -1027,7 +1027,6 @@ header, .nav-tabs, .hub, .binder-header, .profile-view, .market-view, .deck-view
 
     <div class="scan-controls">
       <button class="scan-btn primary" id="scanStartBtn" onclick="startCamera()">📷 Use Camera</button>
-      <button class="scan-btn" id="scanCaptureBtn" onclick="captureAndIdentify()" style="display:none">⚡ Identify Card</button>
       <button class="scan-btn danger" id="scanStopBtn" onclick="stopCamera()" style="display:none">Stop Camera</button>
     </div>
 
@@ -1735,7 +1734,7 @@ function showView(name,btn){
   if(name==='scan') renderScanHistory();
   if(name==='profile') fillProfileForm(currentUser);
   if(name==='binder') normalizeBinderLayoutForMobile();
-  if(name!=='scan') stopCamera();
+  if(name!=='scan') { stopCamera(); }
   document.body.setAttribute('data-mobile-view', name);
   toggleMobileNav(false);
 }
@@ -2270,17 +2269,26 @@ function syncLayoutButtons(){
 
 let cardPressTimer=null;
 let cardPressTriggered=false;
+let cardPressMoved=false;
 
 function startCardPress(cardId, setId){
   clearTimeout(cardPressTimer);
   cardPressTriggered=false;
+  cardPressMoved=false;
   cardPressTimer=setTimeout(()=>{
+    if(cardPressMoved) return;
     cardPressTriggered=true;
+    // Vibrate briefly on mobile to confirm long press registered
+    if(navigator.vibrate) navigator.vibrate(40);
     openCardModal(cardId,setId);
-  }, 450);
+  }, 500);
 }
 
-function cancelCardPress(){
+function cancelCardPress(e){
+  // If finger moved significantly, cancel (user is scrolling)
+  if(e && e.type==='touchmove'){
+    cardPressMoved=true;
+  }
   clearTimeout(cardPressTimer);
 }
 
@@ -2289,6 +2297,7 @@ function handleCardTap(cardId, setId){
     cardPressTriggered=false;
     return;
   }
+  if(cardPressMoved) return;
   toggleCard(cardId,setId);
 }
 
@@ -2298,7 +2307,7 @@ function makeCardSlot(card, isMerged){
   const img = card.images?.small || '';
   const sid = card._setId || currentSetId;
   const setName = isMerged ? (allSets.find(s => s.id===sid)?.name || sid) : '';
-  return `<div class="card-slot ${owned?'owned':''} ${isHighlighted(card.id)?'highlighted':''}" data-id="${card.id}" onclick="handleCardTap('${card.id}','${sid}')" onmousedown="startCardPress('${card.id}','${sid}')" onmouseup="cancelCardPress()" onmouseleave="cancelCardPress()" ontouchstart="startCardPress('${card.id}','${sid}')" ontouchend="cancelCardPress()" ontouchcancel="cancelCardPress()" title="${card.name} #${card.number}">
+  return `<div class="card-slot ${owned?'owned':''} ${isHighlighted(card.id)?'highlighted':''}" data-id="${card.id}" onclick="handleCardTap('${card.id}','${sid}')" onmousedown="startCardPress('${card.id}','${sid}')" onmouseup="cancelCardPress()" onmouseleave="cancelCardPress()" ontouchstart="startCardPress('${card.id}','${sid}')" ontouchend="cancelCardPress()" ontouchmove="cancelCardPress(event)" ontouchcancel="cancelCardPress()" title="${card.name} #${card.number}">
     <span class="card-num-label">#${card.number}</span>
     ${isMerged?`<span class="card-set-label">${setName}</span>`:''}
     ${img?`<img src="${img}" alt="${card.name}" loading="lazy">`:`<div class="placeholder-slot">${card.name}</div>`}
@@ -3047,6 +3056,9 @@ function setScanStatus(msg, type=''){
     :msg;
 }
 
+let autoScanLoop = null;
+let autoScanCooldown = false;
+
 async function startCamera(){
   try{
     const wrap=document.getElementById('scanCameraWrap');
@@ -3058,15 +3070,57 @@ async function startCamera(){
     wrap.style.display='';
     document.getElementById('scanUploadArea').style.display='none';
     document.getElementById('scanStartBtn').style.display='none';
-    document.getElementById('scanCaptureBtn').style.display='';
+    document.getElementById('scanCaptureBtn').style.display='none';
     document.getElementById('scanStopBtn').style.display='';
-    setScanStatus('Camera ready — frame your card and tap Identify Card.');
+    setScanStatus('Camera ready — hold a card steady in frame, it will scan automatically.');
+    startAutoScanLoop();
   }catch(e){
     setScanStatus('Camera access denied or unavailable. Use the upload option above instead.','error');
   }
 }
 
+function startAutoScanLoop(){
+  stopAutoScanLoop();
+  autoScanLoop = setInterval(async ()=>{
+    if(autoScanCooldown) return;
+    const video = document.getElementById('scanVideo');
+    if(!video || !video.srcObject || video.readyState < 2) return;
+    if(!looksLikeCardIsVisible(video)) return;
+    autoScanCooldown = true;
+    captureAndIdentify();
+    // Wait 6 seconds before trying again to avoid spamming API
+    setTimeout(()=>{ autoScanCooldown = false; }, 6000);
+  }, 2500);
+}
+
+function stopAutoScanLoop(){
+  if(autoScanLoop){ clearInterval(autoScanLoop); autoScanLoop = null; }
+  autoScanCooldown = false;
+}
+
+// Quick local check — samples the centre of the frame for a rectangular
+// region that looks card-like (reasonably bright, not a blank wall).
+function looksLikeCardIsVisible(video){
+  try{
+    const canvas = document.createElement('canvas');
+    // Sample at low res for speed
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 64, 64);
+    const pixels = ctx.getImageData(0, 0, 64, 64).data;
+    let bright = 0, dark = 0;
+    for(let i = 0; i < pixels.length; i += 4){
+      const lum = 0.299*pixels[i] + 0.587*pixels[i+1] + 0.114*pixels[i+2];
+      if(lum > 60) bright++; else dark++;
+    }
+    const total = bright + dark;
+    // Frame needs to be at least 30% bright (not pointing at floor/pocket)
+    return bright / total > 0.30;
+  }catch(_){ return false; }
+}
+
 function stopCamera(){
+  stopAutoScanLoop();
   if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
   document.getElementById('scanCameraWrap').style.display='none';
   document.getElementById('scanUploadArea').style.display='';
@@ -3129,9 +3183,14 @@ async function runGoogleVisionWeb(dataUrl){
   const data = await resp.json();
   const response = data?.responses?.[0];
 
+  // Debug — log the full Vision response so we can see what's coming back
+  console.log('🔍 Vision raw response:', JSON.stringify(response, null, 2));
+
   // Extract web entities — these are labels like "Charizard (Trading card)"
   const webEntities = response?.webDetection?.webEntities || [];
   const bestPages = response?.webDetection?.pagesWithMatchingImages || [];
+  console.log('🏷️ Web entities:', webEntities);
+  console.log('📄 Pages:', bestPages.map(p=>p.url));
 
   // Extract card name from web entities — find the most relevant Pokémon entity
   const pokemonStopWords = ['pokemon','trading card','card game','tcg','nintendo','game freak','illustration','art','holo','rare','common','uncommon'];
