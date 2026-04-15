@@ -2788,7 +2788,7 @@ async function initDex(){
   const grid=document.getElementById('dexGrid');
   grid.innerHTML='<div class="dex-loading"><div class="spin-ring"></div> Loading Pokédex…</div>';
   try{
-    const r=await fetch('https://pokeapi.co/api/v2/pokemon?limit=151&offset=0');
+    const r=await fetch('https://pokeapi.co/api/v2/pokemon?limit=2000&offset=0');
     const data=await r.json();
     const detailResults = await Promise.allSettled(
       data.results.map((p,i)=>fetch(p.url).then(r=>r.json()).then(detail=>({
