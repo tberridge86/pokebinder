@@ -1144,6 +1144,12 @@ header, .nav-tabs, .hub, .binder-header, .profile-view, .market-view, .deck-view
         <div class="modal-action-row">
           <button class="modal-action-btn" id="cardFavouriteToggleBtn" onclick="toggleActiveCardHighlight()">★ Favourite</button>
           <button class="modal-action-btn" id="cardChaseToggleBtn" onclick="toggleActiveCardChase()">🎯 Chase card</button>
+          <button class="modal-action-btn" id="cardAddToCollectionBtn" onclick="toggleCollectionPicker()">＋ Add to collection</button>
+        </div>
+        <div id="collectionPickerWrap" style="display:none;margin-top:10px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Pick a custom collection</div>
+          <div id="collectionPickerList" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;"></div>
+          <div id="collectionPickerEmpty" style="display:none;font-size:12px;color:var(--muted);padding:8px 0;">No custom collections yet — create one in the Custom Sets tab first.</div>
         </div>
       </div>
     </div>
@@ -1931,6 +1937,7 @@ function closeCardModal(evt){
   if(evt && evt.target && evt.target !== document.getElementById('cardModalBackdrop')) return;
   document.getElementById('cardModalBackdrop').classList.remove('open');
   document.body.style.overflow='';
+  document.getElementById('collectionPickerWrap').style.display='none';
   activeCard = null;
 }
 
@@ -1960,6 +1967,61 @@ function toggleActiveCardChase(){
   if(!activeCard) return;
   toggleChaseCard(activeCard.id, activeCard._setId || currentSetId);
   openCardModal(activeCard.id, activeCard._setId || currentSetId);
+}
+
+function toggleCollectionPicker(){
+  const wrap = document.getElementById('collectionPickerWrap');
+  const isOpen = wrap.style.display !== 'none';
+  if(isOpen){ wrap.style.display='none'; return; }
+  renderCollectionPicker();
+  wrap.style.display='';
+}
+
+function renderCollectionPicker(){
+  const list = document.getElementById('collectionPickerList');
+  const empty = document.getElementById('collectionPickerEmpty');
+  if(!savedDecks.length){
+    list.innerHTML='';
+    empty.style.display='';
+    return;
+  }
+  empty.style.display='none';
+  list.innerHTML = savedDecks.map(d => {
+    const alreadyIn = d.cards.some(c => c.id === activeCard?.id);
+    return `<button onclick="addActiveCardToCollection('${d.id}')" style="
+      display:flex;align-items:center;justify-content:space-between;
+      background:var(--surface2);border:1px solid ${alreadyIn ? 'var(--gold)' : 'var(--border2)'};
+      border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--text);
+      font-family:'DM Sans',sans-serif;font-size:13px;text-align:left;
+      transition:all 0.15s;width:100%;">
+      <span>${d.name}</span>
+      <span style="font-size:11px;color:${alreadyIn ? 'var(--gold)' : 'var(--muted)'}">
+        ${alreadyIn ? '✓ Added' : `${d.cards.length} cards`}
+      </span>
+    </button>`;
+  }).join('');
+}
+
+function addActiveCardToCollection(deckId){
+  if(!activeCard) return;
+  const deck = savedDecks.find(d => d.id === deckId);
+  if(!deck) return;
+  const alreadyIn = deck.cards.some(c => c.id === activeCard.id);
+  if(alreadyIn){
+    // Remove from collection
+    deck.cards = deck.cards.filter(c => c.id !== activeCard.id);
+  } else {
+    // Add to collection
+    const card = activeCard;
+    deck.cards.push({
+      id:card.id, name:card.name, number:card.number, set:card.set,
+      images:card.images, rarity:card.rarity||'', types:card.types||[],
+      supertype:card.supertype||'', subtypes:card.subtypes||[],
+      artist:card.artist||'', nationalPokedexNumbers:card.nationalPokedexNumbers||[]
+    });
+  }
+  save();
+  renderCollectionPicker();
 }
 
 
