@@ -3070,7 +3070,6 @@ async function startCamera(){
     wrap.style.display='';
     document.getElementById('scanUploadArea').style.display='none';
     document.getElementById('scanStartBtn').style.display='none';
-    document.getElementById('scanCaptureBtn').style.display='none';
     document.getElementById('scanStopBtn').style.display='';
     setScanStatus('Camera ready — hold a card steady in frame, it will scan automatically.');
     startAutoScanLoop();
@@ -3125,7 +3124,6 @@ function stopCamera(){
   document.getElementById('scanCameraWrap').style.display='none';
   document.getElementById('scanUploadArea').style.display='';
   document.getElementById('scanStartBtn').style.display='';
-  document.getElementById('scanCaptureBtn').style.display='none';
   document.getElementById('scanStopBtn').style.display='none';
   setScanStatus('Point your camera at a Pokémon card, then tap Identify Card — or upload a photo above.');
 }
