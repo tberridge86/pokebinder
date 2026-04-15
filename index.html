@@ -375,10 +375,19 @@ header{background:var(--red);border-bottom:3px solid var(--red-dark);padding:0 2
 .chase-section .toploader-sleeve{border-color:rgba(255,107,107,0.38);box-shadow:0 0 0 1px rgba(0,0,0,0.5),0 8px 32px rgba(0,0,0,0.55),0 0 18px rgba(255,107,107,0.12),inset 0 1px 0 rgba(255,255,255,0.35);}
 .chase-section .toploader-unstar{background:#5a1a1a;border-color:#ff6b6b;}
 @media (max-width: 760px){
-  .card-modal-grid{grid-template-columns:1fr;}
-  .card-modal-media{min-height:auto;}
-  .card-modal-stats{grid-template-columns:1fr;}
+  .modal-backdrop{padding:0;align-items:flex-end;}
+  .card-modal{width:100%;border-radius:18px 18px 0 0;max-height:92vh;display:flex;flex-direction:column;}
+  .card-modal-grid{grid-template-columns:1fr;overflow-y:auto;flex:1;}
+  .card-modal-media{min-height:auto;padding:12px;padding-top:16px;}
+  .card-modal-media img{max-height:200px;}
+  .card-modal-body{padding:14px;}
+  .card-modal-stats{grid-template-columns:repeat(3,1fr);gap:6px;}
+  .stat-box{padding:8px;}
+  .stat-value{font-size:14px;}
+  .stat-sub{font-size:9px;}
   .card-modal-controls{grid-template-columns:1fr;}
+  .card-modal-copy{display:none;}
+  .modal-action-row{margin-top:8px;}
 }
 
 
