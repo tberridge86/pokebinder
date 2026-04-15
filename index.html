@@ -59,6 +59,20 @@ header{background:var(--red);border-bottom:3px solid var(--red-dark);padding:0 2
 .view.active{display:block;}
 .hub{padding:28px;max-width:1300px;margin:0 auto;}
 .search-wrap{position:relative;margin-bottom:24px;}
+.search-autocomplete{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.45);z-index:300;overflow:hidden;display:none;max-height:280px;overflow-y:auto;}
+.search-autocomplete.open{display:block;}
+.search-autocomplete::-webkit-scrollbar{width:4px;}
+.search-autocomplete::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.ac-group-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:8px 12px 4px;background:var(--surface2);}
+.ac-item{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;transition:background 0.12s;border-bottom:1px solid rgba(255,255,255,0.04);}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover,.ac-item.ac-selected{background:rgba(255,215,0,0.08);}
+.ac-item-logo{width:24px;height:24px;object-fit:contain;flex-shrink:0;opacity:0.85;}
+.ac-item-icon{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.ac-item-text{flex:1;min-width:0;}
+.ac-item-name{font-size:13px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ac-item-sub{font-size:10px;color:var(--muted2);margin-top:1px;}
+.ac-item-badge{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(255,215,0,0.12);color:var(--gold);font-weight:600;flex-shrink:0;}
 .search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);stroke-width:2;fill:none;pointer-events:none;}
 #searchInput{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px 11px 40px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;}
 #searchInput::placeholder{color:var(--muted);}
@@ -191,7 +205,7 @@ header{background:var(--red);border-bottom:3px solid var(--red-dark);padding:0 2
 .toploader:hover .toploader-unstar{opacity:1;}
 .toploader-owned-btn{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;padding:3px 8px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.65);color:var(--muted2);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:all 0.15s;opacity:0;z-index:5;}
 .toploader:hover .toploader-owned-btn{opacity:1;}
-.toploader.owned .toploader-owned-btn{background:rgba(255,215,0,0.18);border-color:var(--gold);color:var(--gold);opacity:1;}
+.toploader-owned-btn.toploader-owned-active{background:rgba(255,215,0,0.18);border-color:var(--gold);color:var(--gold);opacity:1;}
 .toploader.owned .toploader-sleeve{border-color:rgba(255,215,0,0.5);box-shadow:0 0 0 1px rgba(0,0,0,0.5),0 8px 32px rgba(0,0,0,0.55),0 0 18px rgba(255,215,0,0.12),inset 0 1px 0 rgba(255,255,255,0.35);}
 .card-slot .star-btn{position:absolute;top:5px;left:28px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);color:rgba(255,215,0,0.3);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;transition:all 0.15s;opacity:0;}
 .card-slot:hover .star-btn{opacity:1;}
@@ -912,8 +926,9 @@ header, .nav-tabs, .hub, .binder-header, .profile-view, .market-view, .deck-view
   <div class="hub">
     <div class="search-wrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
-      <input id="searchInput" type="text" placeholder="Search sets by name or series…" oninput="onSearch()">
+      <input id="searchInput" type="text" placeholder="Search sets by name or series…" oninput="onSearch()" onkeydown="onSearchKeydown(event)" autocomplete="off">
       <span class="search-results-count" id="searchCount"></span>
+      <div class="search-autocomplete" id="searchAutocomplete"></div>
     </div>
     <div class="section-heading">MY ACTIVE COLLECTIONS</div>
     <div class="my-sets-grid" id="mySetsGrid"></div>
@@ -2109,10 +2124,123 @@ function addActiveCardToCollection(deckId){
 
 
 // ── HUB ──
+let acSelectedIndex=-1;
+
 function onSearch(){
   searchQuery=document.getElementById('searchInput').value.toLowerCase().trim();
   renderAllSets();
+  renderSearchAutocomplete();
 }
+
+function onSearchKeydown(e){
+  const ac=document.getElementById('searchAutocomplete');
+  const items=ac.querySelectorAll('.ac-item');
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    acSelectedIndex=Math.min(acSelectedIndex+1,items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('ac-selected',i===acSelectedIndex));
+    items[acSelectedIndex]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    acSelectedIndex=Math.max(acSelectedIndex-1,0);
+    items.forEach((el,i)=>el.classList.toggle('ac-selected',i===acSelectedIndex));
+    items[acSelectedIndex]?.scrollIntoView({block:'nearest'});
+  } else if(e.key==='Enter'){
+    if(acSelectedIndex>=0 && items[acSelectedIndex]){
+      items[acSelectedIndex].click();
+    }
+  } else if(e.key==='Escape'){
+    closeSearchAutocomplete();
+  }
+}
+
+function renderSearchAutocomplete(){
+  const ac=document.getElementById('searchAutocomplete');
+  const input=document.getElementById('searchInput');
+  const q=(input.value||'').trim();
+  acSelectedIndex=-1;
+  if(!q){ac.classList.remove('open');ac.innerHTML='';return;}
+  const ql=q.toLowerCase();
+
+  // Match sets by name or series
+  const setMatches=allSets.filter(s=>
+    s.name.toLowerCase().includes(ql)||(s.series||'').toLowerCase().includes(ql)
+  ).slice(0,6);
+
+  // Match Pokémon names from POPULAR list + unique names in currentSetCards/ownedCards
+  const pokeNames=new Set(POPULAR);
+  currentSetCards.forEach(c=>{ if(c.name) pokeNames.add(c.name); });
+  const pokeMatches=[...pokeNames].filter(n=>n.toLowerCase().includes(ql)).slice(0,4);
+
+  if(!setMatches.length && !pokeMatches.length){ac.classList.remove('open');ac.innerHTML='';return;}
+
+  let html='';
+
+  if(setMatches.length){
+    html+=`<div class="ac-group-label">Sets</div>`;
+    html+=setMatches.map(s=>{
+      const logo=s.images?.logo||'';
+      const collecting=isSetTracked(s.id);
+      return`<div class="ac-item" onclick="acSelectSet('${s.id}')">
+        ${logo?`<img class="ac-item-logo" src="${logo}" alt="" onerror="this.style.display='none'">`:`<span class="ac-item-icon">📦</span>`}
+        <div class="ac-item-text">
+          <div class="ac-item-name">${s.name}</div>
+          <div class="ac-item-sub">${s.series||''} · ${s.total||'?'} cards</div>
+        </div>
+        ${collecting?`<span class="ac-item-badge">Tracking</span>`:''}
+      </div>`;
+    }).join('');
+  }
+
+  if(pokeMatches.length){
+    html+=`<div class="ac-group-label">Pokémon</div>`;
+    html+=pokeMatches.map(name=>`<div class="ac-item" onclick="acSelectPokemon('${name}')">
+      <span class="ac-item-icon">⚡</span>
+      <div class="ac-item-text">
+        <div class="ac-item-name">${name}</div>
+        <div class="ac-item-sub">Search cards</div>
+      </div>
+    </div>`).join('');
+  }
+
+  ac.innerHTML=html;
+  ac.classList.add('open');
+}
+
+function acSelectSet(setId){
+  const s=allSets.find(x=>x.id===setId);
+  if(!s) return;
+  document.getElementById('searchInput').value=s.name;
+  searchQuery=s.name.toLowerCase();
+  closeSearchAutocomplete();
+  renderAllSets();
+  // Scroll to this series block
+  setTimeout(()=>{
+    const sk=(s.series||'').replace(/[^a-z0-9]/gi,'_');
+    const block=document.querySelector(`.series-block [data-sk="${sk}"]`)?.closest('.series-block') ||
+                 [...document.querySelectorAll('.series-block')].find(b=>b.textContent.includes(s.series||''));
+    if(block) block.scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+}
+
+function acSelectPokemon(name){
+  document.getElementById('searchInput').value=name;
+  searchQuery=name.toLowerCase();
+  closeSearchAutocomplete();
+  renderAllSets();
+}
+
+function closeSearchAutocomplete(){
+  const ac=document.getElementById('searchAutocomplete');
+  if(ac){ac.classList.remove('open');ac.innerHTML='';}
+  acSelectedIndex=-1;
+}
+
+// Close autocomplete when clicking outside
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-wrap')) closeSearchAutocomplete();
+});
 
 function toggleCollecting(setId,e,silent){
   if(e){e.stopPropagation();e.preventDefault();}
@@ -2257,8 +2385,15 @@ function confirmMerge(seriesKey){
   save();renderMySets();renderAllSets();updateGlobalStats();
 }
 
+function seriesSelectAllBtn(btn){
+  const sk=btn.getAttribute('data-sk');
+  const shouldDeselect=btn.getAttribute('data-deselect')==='true';
+  seriesSelectAll(sk, shouldDeselect);
+}
+
 function seriesSelectAll(sk, shouldDeselect){
-  const sets = allSets.filter(s=>s.series?.replace(/[^a-z0-9]/gi,'_')===sk);
+  // Find sets whose series key matches sk exactly (same transform as renderAllSets)
+  const sets = allSets.filter(s=>(s.series||'').replace(/[^a-z0-9]/gi,'_')===sk);
   if(shouldDeselect){
     sets.forEach(s=>{ mySets.delete(s.id); });
   } else {
@@ -2287,12 +2422,10 @@ function renderAllSets(){
     const sel=mergeSelections[sk]||new Set();
     const mergeMode=mergeSelections[sk]!==undefined;
     const allTracked=sets.every(s=>isSetTracked(s.id));
-    const noneTracked=sets.every(s=>!isSetTracked(s.id));
-    const setIdsJson=JSON.stringify(sets.map(s=>s.id)).replace(/"/g,'&quot;');
     return`<div class="series-block">
       <div class="series-title">
         ${series}
-        ${!mergeMode?`<button class="series-selall-btn" onclick="seriesSelectAll('${sk}',${allTracked})" title="${allTracked?'Deselect all sets in this series':'Select all sets in this series'}">${allTracked?'Deselect all':'Select all'}</button>`:''}
+        ${!mergeMode?`<button class="series-selall-btn" data-sk="${sk}" data-deselect="${allTracked}" onclick="seriesSelectAllBtn(this)" title="${allTracked?'Deselect all sets in this series':'Select all sets in this series'}">${allTracked?'Deselect all':'Select all'}</button>`:''}
         ${sets.length>1?`<button class="merge-series-btn ${mergeMode?'armed':''}" onclick="toggleMergeMode('${sk}')">
           ${mergeMode?'Cancel merge':'Merge sets'}
         </button>`:''}
@@ -2807,11 +2940,14 @@ function getPinnedCardsForCurrentBinder(cards){
 }
 
 function isPinnedCardOwned(h){
-  const sid=h.setId;
-  return !!(sid && (ownedCards[sid]||[]).includes(h.id));
+  const cardId=h.id;
+  // Check directly in ownedCards across all sets
+  if(h.setId && (ownedCards[h.setId]||[]).includes(cardId)) return true;
+  // Fallback: search all sets
+  return Object.values(ownedCards).some(arr=>arr.includes(cardId));
 }
 
-function togglePinnedCardOwned(cardId, setId, stripType){
+function togglePinnedCardOwned(cardId, setId){
   if(!ownedCards[setId]) ownedCards[setId]=[];
   const arr=ownedCards[setId];
   const idx=arr.indexOf(cardId);
@@ -2830,17 +2966,19 @@ function renderPinnedStrip(sectionId, stripId, cards, removeFnName){
   sec.style.display='';
   strip.innerHTML=cards.map(h=>{
     const owned=isPinnedCardOwned(h);
+    const imgOpacity=owned?'1':'0.3';
+    const sleeveGlow=owned?'border-color:rgba(255,215,0,0.55);box-shadow:0 0 0 1px rgba(0,0,0,0.5),0 8px 32px rgba(0,0,0,0.55),0 0 18px rgba(255,215,0,0.15),inset 0 1px 0 rgba(255,255,255,0.35);':'';
     return`
-    <div class="toploader ${owned?'owned':'unowned'}" onclick="openPinnedCard('${h.id}','${h.setId}')">
+    <div class="toploader" onclick="openPinnedCard('${h.id}','${h.setId}')">
       <button class="toploader-unstar" onclick="event.stopPropagation();${removeFnName}('${h.id}')">✕</button>
-      <div class="toploader-sleeve">
+      <div class="toploader-sleeve" style="${sleeveGlow}">
         <div class="toploader-edge"></div>
         <div class="toploader-shine"></div>
-        ${h.img?`<img class="toploader-card-img" src="${h.img}" alt="${h.name}" loading="lazy">`:`<div style="aspect-ratio:2/2.8;background:var(--surface3);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);text-align:center;padding:8px;">${h.name}</div>`}
+        ${h.img?`<img class="toploader-card-img" src="${h.img}" alt="${h.name}" loading="lazy" style="opacity:${imgOpacity}">`:`<div style="aspect-ratio:2/2.8;background:var(--surface3);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);text-align:center;padding:8px;opacity:${imgOpacity};">${h.name}</div>`}
       </div>
       <div class="toploader-name">${h.name}</div>
       <div class="toploader-set">${h.setName}${h.number ? ' · #' + h.number : ''}</div>
-      <button class="toploader-owned-btn" onclick="event.stopPropagation();togglePinnedCardOwned('${h.id}','${h.setId}')" title="${owned?'Mark as unowned':'Mark as owned'}">${owned?'✓ Owned':'Mark owned'}</button>
+      <button class="toploader-owned-btn${owned?' toploader-owned-active':''}" onclick="event.stopPropagation();togglePinnedCardOwned('${h.id}','${h.setId}')" title="${owned?'Mark as unowned':'Mark as owned'}">${owned?'✓ Owned':'Mark owned'}</button>
     </div>`;
   }).join('');
 }
