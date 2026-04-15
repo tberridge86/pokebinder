@@ -1027,8 +1027,8 @@ header, .nav-tabs, .hub, .binder-header, .profile-view, .market-view, .deck-view
 
     <div class="scan-controls">
       <button class="scan-btn primary" id="scanStartBtn" onclick="startCamera()">📷 Use Camera</button>
-      <button class="scan-btn" id="scanCaptureBtn" onclick="captureAndIdentify()" style="display:none">⚡ Identify Card</button>
       <button class="scan-btn danger" id="scanStopBtn" onclick="stopCamera()" style="display:none">Stop Camera</button>
+      <button class="scan-btn" id="scanTorchBtn" onclick="toggleTorch()" style="display:none">🔦 Flash Off</button>
     </div>
 
     <div class="scan-status" id="scanStatus">Point your camera at a Pokémon card, then tap Identify Card — or upload a photo above.</div>
@@ -1735,7 +1735,7 @@ function showView(name,btn){
   if(name==='scan') renderScanHistory();
   if(name==='profile') fillProfileForm(currentUser);
   if(name==='binder') normalizeBinderLayoutForMobile();
-  if(name!=='scan') stopCamera();
+  if(name!=='scan') { stopCamera(); }
   document.body.setAttribute('data-mobile-view', name);
   toggleMobileNav(false);
 }
@@ -3047,6 +3047,25 @@ function setScanStatus(msg, type=''){
     :msg;
 }
 
+let autoScanLoop = null;
+let autoScanCooldown = false;
+
+let torchOn = false;
+
+async function toggleTorch(){
+  if(!scanStream) return;
+  const track = scanStream.getVideoTracks()[0];
+  if(!track) return;
+  try{
+    torchOn = !torchOn;
+    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    document.getElementById('scanTorchBtn').textContent = torchOn ? '🔦 Flash On' : '🔦 Flash Off';
+  }catch(e){
+    setScanStatus('Torch not supported on this device.','error');
+    torchOn = false;
+  }
+}
+
 async function startCamera(){
   try{
     const wrap=document.getElementById('scanCameraWrap');
@@ -3058,21 +3077,74 @@ async function startCamera(){
     wrap.style.display='';
     document.getElementById('scanUploadArea').style.display='none';
     document.getElementById('scanStartBtn').style.display='none';
-    document.getElementById('scanCaptureBtn').style.display='';
+    document.getElementById('scanCaptureBtn').style.display='none';
     document.getElementById('scanStopBtn').style.display='';
-    setScanStatus('Camera ready — frame your card and tap Identify Card.');
+    document.getElementById('scanTorchBtn').style.display='';
+    document.getElementById('scanTorchBtn').textContent='🔦 Flash Off';
+    torchOn = false;
+    setScanStatus('Camera ready — hold a card steady in frame, it will scan automatically.');
+    startAutoScanLoop();
   }catch(e){
     setScanStatus('Camera access denied or unavailable. Use the upload option above instead.','error');
   }
 }
 
+function startAutoScanLoop(){
+  stopAutoScanLoop();
+  autoScanLoop = setInterval(async ()=>{
+    if(autoScanCooldown) return;
+    const video = document.getElementById('scanVideo');
+    if(!video || !video.srcObject || video.readyState < 2) return;
+    if(!looksLikeCardIsVisible(video)) return;
+    autoScanCooldown = true;
+    captureAndIdentify();
+    // Wait 6 seconds before trying again to avoid spamming API
+    setTimeout(()=>{ autoScanCooldown = false; }, 6000);
+  }, 2500);
+}
+
+function stopAutoScanLoop(){
+  if(autoScanLoop){ clearInterval(autoScanLoop); autoScanLoop = null; }
+  autoScanCooldown = false;
+}
+
+// Quick local check — samples the centre of the frame for a rectangular
+// region that looks card-like (reasonably bright, not a blank wall).
+function looksLikeCardIsVisible(video){
+  try{
+    const canvas = document.createElement('canvas');
+    // Sample at low res for speed
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 64, 64);
+    const pixels = ctx.getImageData(0, 0, 64, 64).data;
+    let bright = 0, dark = 0;
+    for(let i = 0; i < pixels.length; i += 4){
+      const lum = 0.299*pixels[i] + 0.587*pixels[i+1] + 0.114*pixels[i+2];
+      if(lum > 60) bright++; else dark++;
+    }
+    const total = bright + dark;
+    // Frame needs to be at least 30% bright (not pointing at floor/pocket)
+    return bright / total > 0.30;
+  }catch(_){ return false; }
+}
+
 function stopCamera(){
-  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
+  stopAutoScanLoop();
+  if(scanStream){
+    // Turn off torch before stopping
+    const track = scanStream.getVideoTracks()[0];
+    if(track && torchOn) track.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
+    scanStream.getTracks().forEach(t=>t.stop());
+    scanStream=null;
+  }
+  torchOn = false;
   document.getElementById('scanCameraWrap').style.display='none';
   document.getElementById('scanUploadArea').style.display='';
   document.getElementById('scanStartBtn').style.display='';
   document.getElementById('scanCaptureBtn').style.display='none';
   document.getElementById('scanStopBtn').style.display='none';
+  document.getElementById('scanTorchBtn').style.display='none';
   setScanStatus('Point your camera at a Pokémon card, then tap Identify Card — or upload a photo above.');
 }
 
@@ -3129,9 +3201,14 @@ async function runGoogleVisionWeb(dataUrl){
   const data = await resp.json();
   const response = data?.responses?.[0];
 
+  // Debug — log the full Vision response so we can see what's coming back
+  console.log('🔍 Vision raw response:', JSON.stringify(response, null, 2));
+
   // Extract web entities — these are labels like "Charizard (Trading card)"
   const webEntities = response?.webDetection?.webEntities || [];
   const bestPages = response?.webDetection?.pagesWithMatchingImages || [];
+  console.log('🏷️ Web entities:', webEntities);
+  console.log('📄 Pages:', bestPages.map(p=>p.url));
 
   // Extract card name from web entities — find the most relevant Pokémon entity
   const pokemonStopWords = ['pokemon','trading card','card game','tcg','nintendo','game freak','illustration','art','holo','rare','common','uncommon'];
