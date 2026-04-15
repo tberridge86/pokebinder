@@ -1,0 +1,3522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PokéBinder — My Collection Hub</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#CC0000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PokéBinder">
+<meta name="description" content="Track your Pokémon card collection across every set">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#CC0000;--red-dark:#8B0000;--gold:#FFD700;--gold-dim:rgba(255,215,0,0.12);
+  --dark:#0d0808;--surface:#181010;--surface2:#221414;--surface3:#2c1a1a;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.13);
+  --text:#f0e8e8;--muted:rgba(240,232,232,0.4);--muted2:rgba(240,232,232,0.65);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--dark);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;position:relative;}
+body::before{content:'';position:absolute;top:0;left:0;right:0;min-height:100%;background-image:var(--bg-img);background-size:cover;background-position:center top;background-repeat:no-repeat;opacity:0.18;z-index:0;pointer-events:none;}
+body>*{position:relative;z-index:1;}
+header{background:var(--red);border-bottom:3px solid var(--red-dark);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);letter-spacing:3px;display:flex;align-items:center;gap:10px;}
+.pb{width:24px;height:24px;border-radius:50%;background:#fff;position:relative;overflow:hidden;flex-shrink:0;}
+.pb::before{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:var(--red);}
+.pb::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:#fff;border:2px solid #999;z-index:1;}
+.header-stats{display:flex;gap:18px;align-items:center;}
+.hstat{text-align:right;}
+.hstat-val{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);line-height:1;}
+.hstat-label{font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.5px;}
+.hstat-div{width:1px;height:26px;background:rgba(255,255,255,0.2);}
+.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;gap:4px;}
+.nav-tab{padding:11px 16px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600;}
+.view{display:none;}
+.view.active{display:block;}
+.hub{padding:28px;max-width:1300px;margin:0 auto;}
+.search-wrap{position:relative;margin-bottom:24px;}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);stroke-width:2;fill:none;pointer-events:none;}
+#searchInput{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px 11px 40px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;}
+#searchInput::placeholder{color:var(--muted);}
+#searchInput:focus{border-color:rgba(255,215,0,0.4);}
+.search-results-count{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);}
+.section-heading{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-heading::after{content:'';flex:1;height:1px;background:var(--border);}
+.my-sets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:40px;}
+.my-set-card{background:var(--surface2);border:1.5px solid var(--gold);border-radius:12px;padding:14px;cursor:pointer;transition:transform 0.15s;position:relative;overflow:hidden;}
+.my-set-card::before{content:'';position:absolute;inset:0;background:var(--gold-dim);pointer-events:none;}
+.my-set-card:hover{transform:translateY(-2px);}
+.my-set-card.merged-card{border-color:#5dade2;}
+.my-set-card.merged-card::before{background:rgba(93,173,226,0.08);}
+.my-set-logo{width:44px;height:44px;object-fit:contain;margin-bottom:8px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));}
+.my-set-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;line-height:1.3;}
+.my-set-series{font-size:11px;color:var(--muted2);margin-bottom:8px;}
+.set-prog-bar{background:rgba(255,255,255,0.08);border-radius:3px;height:4px;overflow:hidden;margin-bottom:4px;}
+.set-prog-fill{background:var(--gold);height:100%;border-radius:3px;transition:width 0.4s;}
+.set-prog-label{font-size:10px;color:var(--muted);display:flex;justify-content:space-between;}
+.remove-btn{position:absolute;top:7px;right:7px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);color:var(--muted);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;z-index:2;}
+.remove-btn:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.empty-my-sets{grid-column:1/-1;padding:36px;text-align:center;color:var(--muted);font-size:13px;border:1.5px dashed var(--border2);border-radius:12px;}
+.merge-badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(93,173,226,0.15);color:#5dade2;font-weight:600;margin-bottom:6px;}
+.series-block{margin-bottom:28px;}
+.series-title{font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;padding-left:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.merge-series-btn{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(93,173,226,0.3);background:rgba(93,173,226,0.08);color:#5dade2;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;white-space:nowrap;}
+.merge-series-btn:hover{background:rgba(93,173,226,0.2);}
+.merge-series-btn.armed{background:rgba(93,173,226,0.25);border-color:#5dade2;}
+.all-sets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+.all-set-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px;cursor:pointer;transition:all 0.15s;filter:grayscale(0.8) brightness(0.5);position:relative;}
+.all-set-card:hover{filter:grayscale(0.2) brightness(0.85);border-color:var(--border2);transform:translateY(-1px);}
+.all-set-card.collecting{filter:none;border-color:var(--gold);background:var(--surface3);}
+.all-set-card.in-merge{filter:none;border-color:#5dade2;background:rgba(93,173,226,0.06);}
+.all-set-logo{width:34px;height:34px;object-fit:contain;margin-bottom:7px;}
+.all-set-name{font-size:12px;font-weight:500;color:var(--muted2);line-height:1.3;}
+.all-set-card.collecting .all-set-name,.all-set-card.in-merge .all-set-name{color:var(--text);}
+.all-set-count{font-size:10px;color:var(--muted);margin-top:2px;}
+.collecting-badge{position:absolute;top:5px;right:5px;width:13px;height:13px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:#3a2800;font-weight:700;}
+.merge-sel-badge{position:absolute;top:5px;left:5px;font-size:8px;padding:1px 5px;border-radius:3px;background:#5dade2;color:#03234a;font-weight:700;}
+.no-results{padding:48px;text-align:center;color:var(--muted);font-size:14px;}
+.sets-loading,.binder-loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:var(--muted);font-size:14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin-ring{width:20px;height:20px;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+.binder-header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:56px;z-index:100;}
+.back-btn{background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
+.back-btn:hover{border-color:var(--gold);color:var(--gold);}
+.binder-set-info{flex:1;min-width:120px;}
+.binder-set-name{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);letter-spacing:1px;line-height:1;}
+.binder-set-meta{font-size:11px;color:var(--muted);margin-top:1px;}
+.binder-prog-wrap{min-width:180px;}
+.binder-prog-bar{background:rgba(255,255,255,0.08);border-radius:4px;height:5px;overflow:hidden;}
+.binder-prog-fill{background:linear-gradient(90deg,var(--red),var(--gold));height:100%;border-radius:4px;transition:width 0.4s;}
+.binder-prog-label{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px;}
+.pill{font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+.pill:hover{border-color:rgba(255,215,0,0.3);color:var(--text);}
+.pill.active{background:var(--gold);color:#3a2800;border-color:var(--gold);font-weight:600;}
+.binder-filters{display:flex;gap:5px;flex-wrap:wrap;}
+.sort-wrap{position:relative;}
+.sort-select{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 28px 5px 10px;font-size:12px;color:var(--muted2);font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;transition:border-color 0.15s;}
+.sort-select:focus,.sort-select:hover{border-color:rgba(255,215,0,0.4);color:var(--text);}
+.sort-wrap::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);pointer-events:none;}
+.binder-book-wrap{padding:28px;max-width:1100px;margin:0 auto;}
+.binder-page{background:#1a0f0f;border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden;margin-bottom:20px;}
+@keyframes fadeSlide{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+.page-inner{display:grid;grid-template-columns:repeat(3,1fr);padding:20px;gap:14px;animation:fadeSlide 0.2s ease;}
+.card-slot{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid rgba(255,255,255,0.05);transition:border-color 0.25s,transform 0.15s,box-shadow 0.2s;aspect-ratio:2/2.8;background:#110909;}
+.card-slot:hover{transform:translateY(-3px) scale(1.01);border-color:rgba(255,215,0,0.3);}
+.card-slot.owned{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,0.12);}
+.card-slot img{width:100%;height:100%;object-fit:cover;display:block;transition:filter 0.35s ease;filter:grayscale(1) brightness(0.32);}
+.card-slot.owned img{filter:grayscale(0) brightness(1);}
+.card-slot::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.18);pointer-events:none;transition:opacity 0.3s;}
+.card-slot.owned::after{opacity:0;}
+.card-num-label{position:absolute;top:5px;left:6px;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);z-index:2;text-shadow:0 1px 3px rgba(0,0,0,0.9);}
+.card-set-label{position:absolute;top:5px;right:6px;font-size:8px;font-weight:600;color:rgba(255,255,255,0.4);z-index:2;text-shadow:0 1px 3px rgba(0,0,0,0.9);max-width:55%;text-align:right;line-height:1.2;}
+.card-tick{position:absolute;bottom:5px;right:5px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.6);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;z-index:2;transition:all 0.2s;}
+.card-slot.owned .card-tick{background:var(--gold);border-color:var(--gold);}
+.card-tick svg{width:10px;height:10px;stroke:#3a2800;stroke-width:2.5;fill:none;opacity:0;transition:opacity 0.2s;}
+.card-slot.owned .card-tick svg{opacity:1;}
+.placeholder-slot{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:rgba(255,255,255,0.08);font-size:10px;text-align:center;padding:8px;}
+.card-slot.ghost{border-color:transparent;background:rgba(0,0,0,0.2);cursor:default;pointer-events:none;}
+.pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 0 28px;}
+.page-btn{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 20px;font-size:13px;font-weight:500;color:var(--muted2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;display:flex;align-items:center;gap:6px;}
+.page-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold);}
+.page-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.page-info{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--muted2);letter-spacing:2px;min-width:120px;text-align:center;}
+.page-dots{display:flex;gap:5px;align-items:center;}
+.page-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);cursor:pointer;transition:all 0.15s;}
+.page-dot.active{background:var(--gold);transform:scale(1.3);}
+.layout-switcher{display:flex;gap:4px;align-items:center;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:4px;}
+.layout-btn{width:32px;height:32px;border:none;border-radius:7px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;padding:0;opacity:0.55;}
+.layout-btn:hover{opacity:0.85;background:var(--surface3);}
+.layout-btn.active{background:var(--gold);opacity:1;}
+.layout-btn svg{width:16px;height:16px;fill:var(--text);}
+.layout-btn.active svg{fill:#3a2800;}
+/* Grid layouts */
+.page-inner.layout-2x2{grid-template-columns:repeat(2,1fr);gap:16px;}
+.page-inner.layout-3x3{grid-template-columns:repeat(3,1fr);gap:14px;}
+.page-inner.layout-4x4{grid-template-columns:repeat(4,1fr);gap:10px;}
+.page-inner.layout-5x5{grid-template-columns:repeat(5,1fr);gap:8px;}
+/* Scroll layout — no pages, just one big grid */
+.binder-scroll-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:14px;padding:28px;max-width:1300px;margin:0 auto;}
+@media(max-width:600px){
+  .page-inner.layout-4x4{grid-template-columns:repeat(3,1fr);}
+  .page-inner.layout-5x5{grid-template-columns:repeat(3,1fr);}
+}
+.spine-rings{display:flex;gap:22px;}
+.spine-ring{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);}
+.page-label{font-size:11px;color:var(--muted);letter-spacing:1px;}
+.binder-empty{text-align:center;padding:60px;color:var(--muted);font-size:14px;}
+
+/* HIGHLIGHTED / TOPLOADER CARDS */
+.highlights-section{padding:28px 28px 0;max-width:1300px;margin:0 auto;}
+.highlights-strip{display:flex;gap:28px;overflow-x:auto;padding:12px 4px 32px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+.highlights-strip::-webkit-scrollbar{height:4px;}
+.highlights-strip::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.toploader{position:relative;flex-shrink:0;width:160px;cursor:pointer;}
+.toploader-sleeve{position:relative;width:160px;background:linear-gradient(160deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0.06) 40%,rgba(255,255,255,0.12) 100%);border:2px solid rgba(255,255,255,0.28);border-radius:6px;padding:6px 6px 22px;box-shadow:0 0 0 1px rgba(0,0,0,0.5),0 8px 32px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.35);backdrop-filter:blur(2px);}
+.toploader-sleeve::before{content:'';position:absolute;top:0;left:0;right:0;height:10px;background:linear-gradient(180deg,rgba(255,255,255,0.22) 0%,transparent 100%);border-radius:4px 4px 0 0;pointer-events:none;}
+.toploader-sleeve::after{content:'';position:absolute;bottom:0;left:0;right:0;height:18px;background:linear-gradient(180deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.12) 100%);border-radius:0 0 4px 4px;pointer-events:none;}
+.toploader-card-img{width:100%;aspect-ratio:2/2.8;object-fit:cover;border-radius:3px;display:block;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
+.toploader-edge{position:absolute;left:2px;right:2px;top:2px;bottom:2px;border-radius:5px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;}
+.toploader-shine{position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.12) 0%,transparent 50%,rgba(255,255,255,0.04) 100%);border-radius:5px;pointer-events:none;}
+.toploader-name{font-size:11px;font-weight:600;color:var(--text);text-align:center;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;}
+.toploader-set{font-size:9px;color:var(--muted);text-align:center;}
+.toploader-unstar{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--red-dark);border:1.5px solid var(--red);color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;z-index:5;}
+.toploader:hover .toploader-unstar{opacity:1;}
+.card-slot .star-btn{position:absolute;top:5px;left:28px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);color:rgba(255,215,0,0.3);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;transition:all 0.15s;opacity:0;}
+.card-slot:hover .star-btn{opacity:1;}
+.card-slot.highlighted .star-btn{opacity:1;color:var(--gold);background:rgba(255,215,0,0.2);border-color:var(--gold);}
+.no-highlights{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;padding:8px 4px;}
+
+/* POKÉDEX TAB */
+.dex-view{padding:28px;max-width:1100px;margin:0 auto;}
+.dex-search-wrap{position:relative;margin-bottom:20px;}
+.dex-search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);stroke-width:2;fill:none;pointer-events:none;}
+#dexSearchInput{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px 11px 40px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;}
+#dexSearchInput::placeholder{color:var(--muted);}
+#dexSearchInput:focus{border-color:rgba(255,215,0,0.4);}
+.dex-types{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+.dex-type-chip{font-size:11px;padding:5px 12px;border-radius:16px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;}
+.dex-type-chip:hover{border-color:rgba(255,215,0,0.3);color:var(--text);}
+.dex-type-chip.active{font-weight:600;}
+.dex-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px;}
+.dex-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:10px 8px 12px;cursor:pointer;transition:all 0.18s;text-align:center;position:relative;overflow:hidden;min-height:138px;display:flex;flex-direction:column;justify-content:flex-end;}
+.dex-card:hover{transform:translateY(-3px);border-color:rgba(255,215,0,0.3);}
+.dex-card.owned-dex{border-color:var(--gold);box-shadow:0 0 14px rgba(255,215,0,0.08);}
+.dex-card-img{width:78px;height:78px;object-fit:contain;margin:8px auto 8px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));}
+.dex-card-num{position:absolute;top:8px;left:8px;font-size:10px;color:var(--muted);font-weight:700;background:rgba(0,0,0,0.24);padding:3px 6px;border-radius:999px;}
+.dex-card-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.2;padding:0 4px;}
+.dex-card-types{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:6px;}
+.dex-type-badge{font-size:8px;padding:2px 5px;border-radius:999px;font-weight:700;}
+.dex-owned-ring{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;background:var(--gold);}
+.dex-cards-count{font-size:9px;color:var(--muted);margin-top:3px;}
+.dex-type-icon{position:absolute;right:8px;bottom:8px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.14);}
+.dex-card.owned-dex .dex-type-icon{box-shadow:0 0 12px rgba(255,215,0,0.14);}
+.dex-loading,.dex-empty{padding:60px;text-align:center;color:var(--muted);font-size:14px;display:flex;align-items:center;justify-content:center;gap:12px;}
+.dex-pokemon-modal{position:fixed;inset:0;background:rgba(0,0,0,0.82);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:18px;z-index:1200;}
+.dex-pokemon-modal.open{display:flex;}
+.dex-poke-panel{width:min(780px,100%);max-height:90vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.6);}
+.dex-poke-panel::-webkit-scrollbar{width:4px;}
+.dex-poke-panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+/* Pokédex entry layout */
+.dex-entry-hero{position:relative;padding:28px 28px 0;display:flex;align-items:flex-end;gap:24px;border-bottom:1px solid var(--border);}
+.dex-entry-artwork{width:160px;height:160px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 8px 20px rgba(0,0,0,0.5));margin-bottom:-10px;}
+.dex-entry-hero-info{flex:1;padding-bottom:20px;}
+.dex-entry-num{font-size:13px;color:var(--muted);font-weight:600;letter-spacing:1px;margin-bottom:4px;}
+.dex-entry-name{font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:2px;line-height:1;color:var(--gold);margin-bottom:8px;}
+.dex-entry-genus{font-size:13px;color:var(--muted2);margin-bottom:10px;}
+.dex-entry-types{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.dex-type-pill{font-size:11px;padding:4px 12px;border-radius:20px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+.dex-entry-close{position:absolute;top:16px;right:16px;background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:10px;padding:6px 10px;font-size:18px;cursor:pointer;line-height:1;transition:all 0.15s;}
+.dex-entry-close:hover{border-color:var(--gold);color:var(--gold);}
+.dex-entry-body{padding:22px 28px 28px;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+@media(max-width:600px){.dex-entry-body{grid-template-columns:1fr;}.dex-entry-hero{flex-direction:column;align-items:flex-start;gap:12px;}.dex-entry-artwork{width:120px;height:120px;}}
+.dex-section-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.dex-flavour{font-size:13px;color:var(--muted2);line-height:1.65;background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border);grid-column:1/-1;}
+.dex-flavour-game{font-size:10px;color:var(--muted);margin-top:6px;text-align:right;}
+.dex-physicals{display:flex;gap:16px;}
+.dex-physical-box{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;}
+.dex-physical-val{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);letter-spacing:1px;}
+.dex-physical-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+.dex-abilities{display:flex;flex-direction:column;gap:6px;}
+.dex-ability-row{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dex-ability-name{font-size:13px;font-weight:600;color:var(--text);}
+.dex-ability-hidden{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(255,215,0,0.1);color:var(--gold);border:1px solid rgba(255,215,0,0.2);}
+/* Base stats */
+.dex-stats{grid-column:1/-1;}
+.dex-stat-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.dex-stat-name{font-size:11px;color:var(--muted);width:88px;flex-shrink:0;text-align:right;}
+.dex-stat-val{font-size:12px;font-weight:700;color:var(--text);width:28px;flex-shrink:0;text-align:right;}
+.dex-stat-bar-wrap{flex:1;background:rgba(255,255,255,0.06);border-radius:4px;height:7px;overflow:hidden;}
+.dex-stat-bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;}
+/* Evolution chain */
+.dex-evo-chain{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}
+.dex-evo-mon{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:transform 0.15s;}
+.dex-evo-mon:hover{transform:translateY(-3px);}
+.dex-evo-img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4));}
+.dex-evo-name{font-size:10px;color:var(--muted2);font-weight:600;}
+.dex-evo-num{font-size:9px;color:var(--muted);}
+.dex-evo-arrow{color:var(--muted);font-size:18px;margin:0 4px;}
+.dex-evo-method{font-size:9px;color:var(--muted);text-align:center;max-width:60px;}
+
+/* MARKET VALUES TAB */
+.market-view{padding:28px;max-width:1100px;margin:0 auto;}
+.market-search-wrap{position:relative;margin-bottom:16px;}
+.market-search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);stroke-width:2;fill:none;pointer-events:none;}
+#marketSearchInput{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px 11px 40px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;}
+#marketSearchInput::placeholder{color:var(--muted);}
+#marketSearchInput:focus{border-color:rgba(255,215,0,0.4);}
+.market-filters-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;}
+.market-grade-select{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;}
+.market-grade-select:focus{border-color:rgba(255,215,0,0.4);}
+.market-finish-select{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;}
+.market-finish-select:focus{border-color:rgba(255,215,0,0.4);}
+.market-poke-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.market-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;}
+.market-card-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:transform 0.15s,border-color 0.15s;}
+.market-card-item:hover{transform:translateY(-3px);border-color:rgba(255,215,0,0.3);}
+.market-card-img-wrap{aspect-ratio:2/2.8;overflow:hidden;position:relative;}
+.market-card-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+.market-card-body{padding:10px;}
+.market-card-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.market-card-set{font-size:10px;color:var(--muted);margin-bottom:6px;}
+.market-card-price{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);letter-spacing:0.5px;}
+.market-card-grade-badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;margin-bottom:4px;}
+.market-card-source{font-size:9px;color:var(--muted);margin-top:2px;}
+.market-empty{padding:60px;text-align:center;color:var(--muted);font-size:14px;}
+.market-grade-note{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.5;}
+.market-info-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;}
+.market-result-count{font-size:12px;color:var(--muted);}
+
+/* DECK BUILDER */
+.deck-view{padding:28px;max-width:1300px;margin:0 auto;}
+.deck-search-wrap{position:relative;margin-bottom:16px;}
+.deck-search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);stroke-width:2;fill:none;pointer-events:none;}
+#deckSearchInput{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 14px 11px 40px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;}
+#deckSearchInput::placeholder{color:var(--muted);}
+#deckSearchInput:focus{border-color:rgba(255,215,0,0.4);}
+.deck-layout{display:grid;grid-template-columns:1fr 310px;gap:20px;}
+.pokemon-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.poke-chip{font-size:12px;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);cursor:pointer;transition:all 0.15s;}
+.poke-chip:hover{border-color:var(--gold);color:var(--gold);}
+.poke-chip.active{background:var(--gold);color:#3a2800;border-color:var(--gold);font-weight:600;}
+.deck-results-info{font-size:12px;color:var(--muted);margin-bottom:12px;min-height:18px;}
+.deck-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+.deck-card-item{position:relative;border-radius:10px;overflow:hidden;border:2px solid var(--border);background:var(--surface2);cursor:pointer;transition:all 0.2s;aspect-ratio:2/2.8;}
+.deck-card-item img{width:100%;height:100%;object-fit:cover;display:block;transition:filter 0.3s;}
+.deck-card-item.not-owned img{filter:grayscale(0.6) brightness(0.55);}
+.deck-card-item:hover{transform:translateY(-3px);border-color:rgba(255,215,0,0.4);}
+.deck-card-item.in-deck{border-color:var(--gold);box-shadow:0 0 12px rgba(255,215,0,0.15);}
+.deck-card-owned-badge{position:absolute;top:5px;left:5px;font-size:8px;padding:2px 5px;border-radius:3px;background:rgba(42,122,59,0.85);color:#a8f0bc;font-weight:600;z-index:2;}
+.deck-card-add{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:6px;background:rgba(0,0,0,0.65);border:1.5px solid rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,0.62);transition:all 0.2s;z-index:3;font-weight:700;}
+.deck-card-item.in-deck .deck-card-add{background:var(--gold);border-color:var(--gold);color:#3a2800;}
+.deck-card-own{position:absolute;bottom:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.65);border:1.5px solid rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,0.55);transition:all 0.2s;z-index:3;font-weight:700;}
+.deck-card-item.not-owned .deck-card-own{color:rgba(255,255,255,0.5);}
+.deck-card-item.owned-card .deck-card-own{background:var(--gold);border-color:var(--gold);color:#3a2800;}
+.deck-card-item .deck-card-add:hover,.deck-card-item .deck-card-own:hover{transform:scale(1.06);}
+.deck-card-num{position:absolute;top:5px;right:5px;font-size:8px;color:rgba(255,255,255,0.4);font-weight:600;z-index:2;}
+.deck-set-group{margin-bottom:20px;}
+.deck-set-group-title{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.deck-panel{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:16px;position:sticky;top:108px;height:fit-content;}
+.deck-panel-title{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);letter-spacing:1px;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between;}
+.deck-panel-meta{font-size:11px;color:var(--muted);margin-bottom:12px;}
+.deck-name-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;margin-bottom:10px;}
+.deck-name-input:focus{border-color:rgba(255,215,0,0.4);}
+.deck-count-bar{display:flex;gap:2px;margin-bottom:10px;flex-wrap:wrap;}
+.deck-count-seg{height:4px;border-radius:1px;width:calc((100% - 118px)/60);min-width:3px;background:var(--border2);transition:background 0.2s;}
+.deck-count-seg.filled{background:var(--gold);}
+.deck-count-seg.over{background:var(--red);}
+.deck-list{display:flex;flex-direction:column;gap:5px;max-height:320px;overflow-y:auto;margin-bottom:10px;}
+.deck-list::-webkit-scrollbar{width:3px;}
+.deck-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.deck-item{display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:7px;padding:5px 7px;border:1px solid var(--border);}
+.deck-item-thumb{width:26px;height:36px;object-fit:cover;border-radius:3px;flex-shrink:0;}
+.deck-item-info{flex:1;min-width:0;}
+.deck-item-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.deck-item-set{font-size:9px;color:var(--muted);}
+.deck-item-remove{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:2px;border-radius:3px;transition:color 0.15s;flex-shrink:0;}
+.deck-item-remove:hover{color:var(--red);}
+.deck-empty{font-size:12px;color:var(--muted);text-align:center;padding:18px;border:1.5px dashed var(--border2);border-radius:8px;}
+.deck-actions{display:flex;gap:6px;margin-bottom:4px;}
+.deck-btn{flex:1;background:none;border:1px solid var(--border2);border-radius:8px;padding:7px;font-size:12px;color:var(--muted2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.deck-btn:hover{border-color:var(--gold);color:var(--gold);}
+.deck-btn.primary{background:var(--gold);border-color:var(--gold);color:#3a2800;font-weight:600;}
+.deck-btn.primary:hover{background:#ffe866;}
+.saved-decks-wrap{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;}
+.saved-deck-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);}
+.saved-deck-row:last-child{border-bottom:none;}
+.saved-deck-name{font-size:12px;color:var(--text);cursor:pointer;flex:1;}
+.saved-deck-name:hover{color:var(--gold);}
+.saved-deck-count{font-size:10px;color:var(--muted);}
+.saved-deck-del{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;}
+.saved-deck-del:hover{color:var(--red);}
+.deck-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--muted);font-size:13px;}
+
+
+/* CARD MODAL */
+.price-pill{font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid rgba(255,215,0,0.25);background:rgba(255,215,0,0.08);color:var(--gold);}
+.value-summary{font-size:11px;color:var(--muted);margin-top:4px;}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.68);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px;z-index:1100;}
+.modal-backdrop.open{display:flex;}
+.card-modal{width:min(920px,100%);background:var(--surface);border:1px solid var(--border2);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,0.45);overflow:hidden;}
+.card-modal-grid{display:grid;grid-template-columns:minmax(220px,300px) 1fr;}
+.card-modal-media{background:#120b0b;padding:18px;display:flex;align-items:center;justify-content:center;min-height:340px;}
+.card-modal-media img{max-width:100%;max-height:420px;border-radius:14px;box-shadow:0 12px 24px rgba(0,0,0,0.35);}
+.card-modal-body{padding:22px;}
+.card-modal-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;}
+.card-modal-name{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gold);letter-spacing:1px;line-height:1;}
+.card-modal-meta{font-size:12px;color:var(--muted2);margin-top:4px;}
+.card-modal-close{background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:10px;padding:7px 10px;font-size:18px;cursor:pointer;line-height:1;}
+.card-modal-close:hover{border-color:var(--gold);color:var(--gold);}
+.card-modal-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px;}
+.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;}
+.stat-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.stat-value{font-size:18px;font-weight:700;color:var(--text);}
+.stat-sub{font-size:11px;color:var(--muted2);margin-top:3px;}
+.card-modal-controls{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;margin-bottom:14px;}
+.control-label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.control-select{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;}
+.control-select:focus{border-color:rgba(255,215,0,0.4);}
+.owned-toggle-btn{background:var(--gold);border:1px solid var(--gold);color:#3a2800;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;}
+.owned-toggle-btn.secondary{background:transparent;color:var(--muted2);border-color:var(--border2);}
+.owned-toggle-btn.secondary:hover{border-color:var(--gold);color:var(--gold);}
+.card-modal-copy{font-size:12px;color:var(--muted2);line-height:1.5;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;}
+.card-modal-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.modal-tag{font-size:11px;padding:5px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);color:var(--muted2);}
+.modal-action-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.modal-action-btn{background:none;border:1px solid var(--border2);color:var(--muted2);border-radius:999px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.modal-action-btn:hover{border-color:var(--gold);color:var(--gold);}
+.modal-action-btn.active-favourite{background:rgba(255,215,0,0.14);border-color:var(--gold);color:var(--gold);}
+.modal-action-btn.active-chase{background:rgba(255,107,107,0.12);border-color:#ff6b6b;color:#ff9c9c;}
+.chase-section .toploader-sleeve{border-color:rgba(255,107,107,0.38);box-shadow:0 0 0 1px rgba(0,0,0,0.5),0 8px 32px rgba(0,0,0,0.55),0 0 18px rgba(255,107,107,0.12),inset 0 1px 0 rgba(255,255,255,0.35);}
+.chase-section .toploader-unstar{background:#5a1a1a;border-color:#ff6b6b;}
+@media (max-width: 760px){
+  .card-modal-grid{grid-template-columns:1fr;}
+  .card-modal-media{min-height:auto;}
+  .card-modal-stats{grid-template-columns:1fr;}
+  .card-modal-controls{grid-template-columns:1fr;}
+}
+
+
+/* CARD SCANNER */
+.scan-view{padding:28px;max-width:680px;margin:0 auto;}
+.scan-camera-wrap{position:relative;width:100%;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:60vh;}
+#scanVideo{width:100%;height:100%;object-fit:cover;display:block;}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.scan-frame{width:62%;aspect-ratio:2/2.8;border:2.5px solid var(--gold);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);position:relative;}
+.scan-frame::before,.scan-frame::after{content:'';position:absolute;width:18px;height:18px;border-color:var(--gold);border-style:solid;}
+.scan-frame::before{top:-3px;left:-3px;border-width:3px 0 0 3px;border-radius:3px 0 0 0;}
+.scan-frame::after{bottom:-3px;right:-3px;border-width:0 3px 3px 0;border-radius:0 0 3px 0;}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);animation:scanLine 2s ease-in-out infinite;}
+@keyframes scanLine{0%{top:5%;}100%{top:95%;}}
+.scan-hint{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:0.5px;}
+.scan-controls{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.scan-btn{flex:1;padding:12px;border-radius:12px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;min-width:120px;text-align:center;}
+.scan-btn:hover{border-color:var(--gold);color:var(--gold);}
+.scan-btn.primary{background:var(--gold);color:#3a2800;border-color:var(--gold);}
+.scan-btn.primary:hover{background:#ffe866;}
+.scan-btn.danger{border-color:rgba(204,0,0,0.4);color:var(--muted2);}
+.scan-btn.danger:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.scan-status{margin-top:14px;padding:12px 16px;border-radius:10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);color:var(--muted2);min-height:44px;display:flex;align-items:center;gap:10px;line-height:1.4;}
+.scan-status.thinking{border-color:rgba(255,215,0,0.3);color:var(--text);}
+.scan-status.success{border-color:rgba(46,204,113,0.4);background:rgba(46,204,113,0.06);color:#2ecc71;}
+.scan-status.error{border-color:rgba(204,0,0,0.3);background:rgba(204,0,0,0.06);color:#e05555;}
+/* Result confirm card */
+.scan-result{margin-top:16px;background:var(--surface2);border:1px solid var(--border2);border-radius:14px;overflow:hidden;display:none;}
+.scan-result.visible{display:block;}
+.scan-result-grid{display:grid;grid-template-columns:auto 1fr;gap:0;}
+.scan-result-img{width:110px;aspect-ratio:2/2.8;object-fit:cover;display:block;}
+.scan-result-body{padding:14px;}
+.scan-result-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.scan-result-name{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);letter-spacing:1px;line-height:1;}
+.scan-result-meta{font-size:12px;color:var(--muted2);margin:4px 0 12px;}
+.scan-result-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.scan-result-candidates{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;}
+.scan-candidate-btn{display:flex;align-items:center;gap:10px;width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;padding:8px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;text-align:left;transition:all 0.15s;}
+.scan-candidate-btn:hover{border-color:var(--gold);transform:translateY(-1px);}
+.scan-candidate-btn.active{border-color:var(--gold);background:rgba(255,215,0,0.08);}
+.scan-candidate-thumb{width:36px;height:50px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--surface2);}
+.scan-candidate-info{min-width:0;flex:1;}
+.scan-candidate-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.scan-candidate-meta{font-size:10px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.scan-result-add{padding:8px 18px;border-radius:8px;background:var(--gold);color:#3a2800;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background 0.15s;}
+.scan-result-add:hover{background:#ffe866;}
+.scan-result-add.already{background:rgba(46,204,113,0.15);color:#2ecc71;border:1px solid rgba(46,204,113,0.3);}
+.scan-result-skip{padding:8px 14px;border-radius:8px;background:none;border:1px solid var(--border2);color:var(--muted2);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.scan-result-skip:hover{border-color:var(--red);color:#e05555;}
+.scan-history{margin-top:22px;}
+.scan-history-title{font-size:11px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.scan-history-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;}
+.scan-history-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:8px;padding:8px 10px;border:1px solid var(--border);}
+.scan-history-thumb{width:32px;height:44px;object-fit:cover;border-radius:4px;flex-shrink:0;}
+.scan-history-info{flex:1;min-width:0;}
+.scan-history-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.scan-history-set{font-size:10px;color:var(--muted);}
+.scan-history-badge{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(46,204,113,0.12);color:#2ecc71;border:1px solid rgba(46,204,113,0.25);flex-shrink:0;}
+.scan-upload-area{border:2px dashed var(--border2);border-radius:14px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.15s;margin-top:16px;}
+.scan-upload-area:hover{border-color:var(--gold);}
+.scan-upload-icon{font-size:32px;margin-bottom:8px;}
+.scan-upload-text{font-size:13px;color:var(--muted2);}
+.scan-upload-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+#scanFileInput{display:none;}
+/* PWA banner */
+#installBanner{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--gold);border-radius:12px;padding:12px 18px;align-items:center;gap:12px;z-index:999;box-shadow:0 4px 24px rgba(0,0,0,0.5);white-space:nowrap;}
+.ib-text{font-size:13px;color:var(--muted2);}
+.ib-text strong{color:var(--text);font-weight:600;}
+.ib-btn{background:var(--gold);color:#3a2800;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ib-dismiss{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+
+/* SUPABASE AUTH + HEADER USER AREA */
+.header-user-area{display:flex;align-items:center;gap:10px;margin-left:auto;}
+.auth-inline{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;}
+.auth-input.small{min-width:130px;padding:6px 8px;font-size:12px;border-radius:7px;background:rgba(0,0,0,0.18);}
+.auth-btn.small{padding:6px 9px;font-size:11px;border-radius:7px;}
+.user-menu-wrap{position:relative;}
+.avatar-btn{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.18);background:var(--surface2);color:var(--gold);font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;transition:all 0.15s;overflow:hidden;}
+.avatar-btn:hover{border-color:var(--gold);transform:translateY(-1px);}
+.avatar-img{width:100%;height:100%;object-fit:cover;display:block;}
+.user-dropdown{position:absolute;top:42px;right:0;width:220px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.45);padding:10px;display:none;z-index:400;}
+.user-dropdown.open{display:block;}
+.user-dropdown-header{padding:6px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+.user-dropdown-name{font-size:12px;font-weight:700;color:var(--text);line-height:1.3;}
+.user-dropdown-email{font-size:11px;color:var(--muted2);margin-top:4px;word-break:break-word;}
+.user-dropdown-btn{width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:9px 10px;font-size:12px;color:var(--muted2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.user-dropdown-btn:hover{background:var(--surface2);color:var(--text);}
+.user-dropdown-btn.danger:hover{background:rgba(204,0,0,0.12);color:#ff8d8d;}
+@media(max-width:900px){
+  .header-user-area{gap:6px;}
+  .auth-input.small{min-width:92px;}
+}
+@media(max-width:760px){
+  header{padding:0 14px;height:auto;min-height:56px;gap:10px;flex-wrap:wrap;}
+  .header-stats{order:3;width:100%;justify-content:flex-start;padding-bottom:10px;}
+  .header-user-area{margin-left:0;width:100%;justify-content:flex-end;padding-bottom:10px;}
+}
+@media(max-width:560px){
+  .auth-inline{width:100%;justify-content:flex-end;flex-wrap:wrap;}
+  .auth-input.small{min-width:110px;flex:0 1 120px;}
+}
+
+
+
+
+
+/* MOBILE NAV */
+.mobile-menu-btn{display:none !important;}
+.mobile-nav-overlay{display:none !important;}
+.mobile-bottom-nav{
+  display:none;
+  position:fixed;
+  left:12px;
+  right:12px;
+  bottom:12px;
+  height:72px;
+  background:rgba(24,16,16,0.94);
+  backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:24px;
+  z-index:470;
+  padding:0 10px env(safe-area-inset-bottom);
+  align-items:center;
+  justify-content:space-between;
+  box-shadow:0 18px 40px rgba(0,0,0,0.35);
+}
+.mobile-bottom-nav .mobile-nav-btn{
+  flex:1;
+  background:none;
+  border:none;
+  color:var(--muted2);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  font-family:'DM Sans',sans-serif;
+  cursor:pointer;
+  padding:8px 4px;
+  min-width:0;
+  border-radius:18px;
+  transition:transform .16s ease, box-shadow .16s ease, color .16s ease, background .16s ease, border-color .16s ease;
+  position:relative;
+  border:1px solid transparent;
+}
+.mobile-bottom-nav .mobile-nav-btn.active{
+  transform:translateY(-1px);
+  box-shadow:0 0 0 1px currentColor inset, 0 0 18px rgba(255,255,255,0.06);
+}
+.mobile-bottom-nav .mobile-nav-btn.hub.active{color:#fff2b5;background:rgba(255,215,0,0.08);}
+.mobile-bottom-nav .mobile-nav-btn.market.active{color:#ffd86e;background:rgba(255,216,110,0.08);}
+.mobile-bottom-nav .mobile-nav-btn.custom.active{color:#a6ddff;background:rgba(166,221,255,0.08);}
+.mobile-bottom-nav .mobile-nav-btn.dex.active{color:#ff8a8a;background:rgba(255,138,138,0.10);}
+.mobile-bottom-nav .mobile-nav-btn.scan.active{color:#9fe8ff;background:rgba(159,232,255,0.08);}
+.mobile-bottom-nav .mobile-nav-btn.hub-fab{
+  flex:0 0 78px;
+  width:78px;
+  height:78px;
+  margin-top:-26px;
+  border-radius:50%;
+  color:#fff2b5;
+  background:linear-gradient(180deg, rgba(47,25,25,0.98), rgba(24,16,16,0.98));
+  border:2px solid rgba(255,215,0,0.55);
+  box-shadow:0 10px 26px rgba(0,0,0,0.45), 0 0 0 4px rgba(24,16,16,0.92);
+}
+.mobile-bottom-nav .mobile-nav-btn.hub-fab.active{
+  box-shadow:0 10px 26px rgba(0,0,0,0.45), 0 0 0 4px rgba(24,16,16,0.92), 0 0 18px rgba(255,215,0,0.28);
+  color:#fff2b5;
+}
+.mobile-bottom-nav .mobile-nav-btn.hub-fab .mobile-bottom-label{font-size:10px;font-weight:700;margin-top:-2px;}
+.mobile-icon{
+  width:22px;
+  height:22px;
+  position:relative;
+  display:block;
+  color:currentColor;
+}
+.mobile-bottom-label{
+  font-size:10px;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+}
+
+/* themed icons */
+.icon-home{
+  width:22px;
+  height:22px;
+  position:relative;
+}
+.icon-home::before{
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:2px;
+  transform:translateX(-50%);
+  width:12px;
+  height:9px;
+  border:2px solid currentColor;
+  border-top:none;
+  border-radius:0 0 3px 3px;
+}
+.icon-home::after{
+  content:'';
+  position:absolute;
+  left:50%;
+  top:2px;
+  width:10px;
+  height:10px;
+  border-left:2px solid currentColor;
+  border-top:2px solid currentColor;
+  transform:translateX(-50%) rotate(45deg);
+  background:transparent;
+}
+
+.icon-coin{
+  width:22px;height:22px;border-radius:50%;border:2px solid currentColor;position:relative;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,0.05);
+}
+.icon-coin::before{
+  content:'';position:absolute;inset:4px;border-radius:50%;border:1.5px solid currentColor;opacity:.8;
+}
+.icon-coin::after{
+  content:'₽';position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);font-size:10px;font-weight:700;
+}
+
+.icon-cards{
+  width:22px;height:22px;position:relative;
+}
+.icon-cards::before,.icon-cards::after{
+  content:'';position:absolute;width:13px;height:17px;border:2px solid currentColor;border-radius:4px;background:rgba(255,255,255,0.02);
+}
+.icon-cards::before{left:1px;top:3px;transform:rotate(-10deg);opacity:.72;}
+.icon-cards::after{right:1px;top:1px;transform:rotate(8deg);}
+.icon-cards span{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.92;
+}
+
+.pokeball-hub{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  position:relative;
+  background:linear-gradient(to bottom, #d33636 0 48%, #ffffff 48% 100%);
+  border:2px solid #1a1212;
+  box-shadow:0 2px 8px rgba(0,0,0,0.22);
+}
+.pokeball-hub::before{
+  content:'';
+  position:absolute;
+  left:-1px;
+  right:-1px;
+  top:50%;
+  height:2px;
+  background:#1a1212;
+  transform:translateY(-50%);
+}
+.pokeball-hub::after{
+  content:'';
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:12px;
+  height:12px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:#fff;
+  border:2px solid #1a1212;
+  z-index:2;
+}
+
+.icon-camera{
+  width:22px;
+  height:16px;
+  border:2px solid currentColor;
+  border-radius:4px;
+  position:relative;
+  background:rgba(255,255,255,0.02);
+}
+.icon-camera::before{
+  content:'';
+  position:absolute;
+  width:6px;
+  height:6px;
+  border:2px solid currentColor;
+  border-radius:50%;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+}
+.icon-camera::after{
+  content:'';
+  position:absolute;
+  width:6px;
+  height:2px;
+  background:currentColor;
+  top:-4px;
+  left:2px;
+  border-radius:2px;
+}
+
+.icon-dex{
+  width:22px;height:22px;border:2px solid currentColor;border-radius:5px;position:relative;background:rgba(255,255,255,0.02);
+}
+.icon-dex::before{
+  content:'';position:absolute;left:4px;top:4px;width:5px;height:5px;border-radius:50%;background:currentColor;
+}
+.icon-dex::after{
+  content:'';position:absolute;left:4px;right:4px;bottom:5px;height:2px;background:currentColor;border-radius:2px;
+}
+
+/* subtle themed tint on mobile */
+@media(max-width:760px){
+  body::after{
+    content:'';
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    background:transparent;
+    transition:background .22s ease;
+  }
+  body[data-mobile-view='hub']::after{
+    background:radial-gradient(circle at 50% -10%, rgba(255,176,184,0.11), transparent 38%);
+  }
+  body[data-mobile-view='market']::after{
+    background:radial-gradient(circle at 50% -10%, rgba(255,216,110,0.10), transparent 38%);
+  }
+  body[data-mobile-view='deck']::after{
+    background:radial-gradient(circle at 50% -10%, rgba(166,221,255,0.11), transparent 40%);
+  }
+  body[data-mobile-view='scan']::after{
+    background:radial-gradient(circle at 50% -10%, rgba(255,215,0,0.10), transparent 40%);
+  }
+  body[data-mobile-view='dex']::after{
+    background:radial-gradient(circle at 50% -10%, rgba(255,138,138,0.12), transparent 42%);
+  }
+}
+
+/* PROFILE */
+
+.profile-view{padding:28px;max-width:980px;margin:0 auto;}
+.profile-grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:18px;}
+.profile-card{background:var(--surface2);border:1px solid var(--border2);border-radius:14px;padding:18px;}
+.profile-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);letter-spacing:1px;margin-bottom:6px;}
+.profile-sub{font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.5;}
+.profile-field{margin-bottom:12px;}
+.profile-label{display:block;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.profile-input,.profile-select,.profile-range{width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;}
+.profile-input:focus,.profile-select:focus{border-color:rgba(255,215,0,0.4);}
+.profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.profile-btn{background:none;border:1px solid var(--border2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.profile-btn:hover{border-color:var(--gold);color:var(--gold);}
+.profile-btn.primary{background:var(--gold);border-color:var(--gold);color:#3a2800;font-weight:700;}
+.profile-preview{position:relative;min-height:340px;border-radius:14px;overflow:hidden;background:var(--surface3);border:1px solid var(--border);}
+.profile-preview::before{content:'';position:absolute;inset:0;background-image:var(--profile-preview-img);background-size:cover;background-position:center;opacity:var(--profile-preview-opacity,0.18);}
+.profile-preview-overlay{position:relative;z-index:1;padding:20px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(180deg,rgba(0,0,0,0.05) 10%, rgba(0,0,0,0.55) 100%);}
+.profile-preview-name{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--gold);letter-spacing:1px;}
+.profile-preview-meta{font-size:12px;color:var(--muted2);}
+.profile-help{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;}
+.profile-upload-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.profile-file-input{max-width:100%;font-size:12px;color:var(--muted2);}
+.profile-avatar-preview{width:64px;height:64px;border-radius:50%;overflow:hidden;border:1px solid var(--border2);background:var(--surface3);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--gold);font-size:20px;}
+.profile-avatar-preview img{width:100%;height:100%;object-fit:cover;display:block;}
+@media(max-width:800px){.profile-grid{grid-template-columns:1fr;}}
+
+
+/* MOBILE OPTIMISATION */
+html, body{max-width:100%;overflow-x:hidden;}
+header, .nav-tabs, .hub, .binder-header, .profile-view, .market-view, .deck-view, .dex-view, .scan-view{max-width:100%;}
+.nav-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.nav-tabs::-webkit-scrollbar{display:none;}
+
+@media(max-width:900px){
+  .hub,.binder-book-wrap,.market-view,.deck-view,.dex-view,.scan-view,.profile-view{padding:16px 12px;}
+  .binder-header{padding:10px 12px;}
+}
+
+@media(max-width:760px){
+  body{padding-bottom:78px;}
+  header{height:auto;min-height:56px;padding:10px 12px;gap:8px;flex-wrap:wrap;align-items:center;}
+  .logo{font-size:24px;letter-spacing:2px;min-width:0;flex:1;}
+  .header-user-area{order:2;margin-left:auto;min-width:0;max-width:100%;gap:6px;}
+  .header-stats{order:3;width:100%;gap:10px;justify-content:space-between;flex-wrap:nowrap;padding-bottom:0;}
+  .hstat-div{display:none;}
+  .auth-inline{justify-content:flex-end;flex-wrap:wrap;max-width:100%;}
+  .auth-input.small{min-width:0;width:108px;max-width:34vw;padding:5px 7px;font-size:11px;}
+  .auth-btn.small{padding:5px 8px;font-size:10px;}
+  .user-dropdown{right:0;left:auto;max-width:min(92vw,220px);}
+  .nav-tabs{display:none;}
+  .mobile-bottom-nav{display:flex;}
+  .layout-btn[data-mobile-hide="true"]{display:none !important;}
+  .binder-header{top:0;gap:8px;}
+  .binder-prog-wrap{min-width:140px;}
+  .my-sets-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .all-sets-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .dex-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+  .market-cards-grid,.deck-cards-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .profile-grid{grid-template-columns:1fr;}
+}
+
+@media(max-width:560px){
+  .header-user-area{width:100%;justify-content:flex-end;}
+  .auth-inline{width:100%;justify-content:flex-end;}
+  .header-stats{gap:6px;}
+  .hstat{min-width:0;flex:1;}
+  .hstat-val{font-size:17px;}
+  .hstat-label{font-size:9px;}
+  .hub,.binder-book-wrap,.market-view,.deck-view,.dex-view,.scan-view,.profile-view{padding:14px 10px;}
+  .search-wrap,.dex-search-wrap,.market-search-wrap,.deck-search-wrap{margin-bottom:16px;}
+  .my-sets-grid,.all-sets-grid,.market-cards-grid,.deck-cards-grid{gap:8px;}
+  .page-inner.layout-2x2{grid-template-columns:repeat(2,1fr);gap:10px;padding:12px;}
+  .binder-scroll-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px 10px;}
+}
+</style>
+</head>
+<body data-mobile-view="hub">
+
+<header>
+  <div class="logo"><div class="pb"></div>PokéBinder</div>
+  <div class="header-stats">
+    <div class="hstat"><div class="hstat-val" id="hstat-sets">0</div><div class="hstat-label">Sets tracking</div></div>
+    <div class="hstat-div"></div>
+    <div class="hstat"><div class="hstat-val" id="hstat-owned">0</div><div class="hstat-label">Cards owned</div></div>
+    <div class="hstat-div"></div>
+    <div class="hstat"><div class="hstat-val" id="hstat-pct">0%</div><div class="hstat-label">Completion</div></div>
+  </div>
+    <div class="header-user-area">
+    <div class="auth-inline" id="authInline">
+      <input id="emailInput" class="auth-input small" type="email" placeholder="Email">
+      <input id="passwordInput" class="auth-input small" type="password" placeholder="Password">
+      <button class="auth-btn small" onclick="signUp()">Sign up</button>
+      <button class="auth-btn primary small" onclick="signIn()">Log in</button>
+    </div>
+    <div class="user-menu-wrap" id="userMenuWrap" style="display:none;">
+      <button class="avatar-btn" id="avatarBtn" onclick="toggleUserMenu()" aria-label="Open profile menu">PB</button>
+      <div class="user-dropdown" id="userDropdown">
+        <div class="user-dropdown-header">
+          <div class="user-dropdown-name" id="userDropdownName">PokéBinder Collector</div>
+          <div class="user-dropdown-email" id="authStatus">Not logged in</div>
+        </div>
+        <button class="user-dropdown-btn" onclick="openProfileView()">Profile</button>
+        <button class="user-dropdown-btn danger" onclick="signOutUser()">Log out</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="nav-tabs">
+  <button class="nav-tab active" id="tab-hub" onclick="showView('hub',this)">My Hub</button>
+  <button class="nav-tab" id="tab-market" onclick="showView('market',this)">Market Values</button>
+  <button class="nav-tab" id="tab-deck" onclick="showView('deck',this)">Custom Sets</button>
+  <button class="nav-tab" id="tab-scan" onclick="showView('scan',this)">📷 Scan Cards</button>
+  <button class="nav-tab" id="tab-dex" onclick="showView('dex',this)">Pokédex</button>
+  <button class="nav-tab" id="tab-profile" style="display:none" onclick="showView('profile',this)">Profile</button>
+  <button class="nav-tab" id="tab-binder" style="display:none" onclick="showView('binder',this)">Binder</button>
+</div>
+
+
+
+<div class="mobile-bottom-nav" id="mobileBottomNav">
+  <button class="mobile-nav-btn dex" id="mnav-dex" onclick="showView('dex',this)" aria-label="Pokédex">
+    <span class="mobile-icon icon-dex"></span>
+    <span class="mobile-bottom-label">Dex</span>
+  </button>
+  <button class="mobile-nav-btn custom" id="mnav-deck" onclick="showView('deck',this)" aria-label="Custom Sets">
+    <span class="mobile-icon icon-cards"><span></span></span>
+    <span class="mobile-bottom-label">Custom</span>
+  </button>
+  <button class="mobile-nav-btn hub hub-fab active" id="mnav-hub" onclick="showView('hub',this)" aria-label="My Hub">
+    <span class="mobile-icon pokeball-hub"></span>
+    <span class="mobile-bottom-label">Hub</span>
+  </button>
+  <button class="mobile-nav-btn market" id="mnav-market" onclick="showView('market',this)" aria-label="Market Values">
+    <span class="mobile-icon icon-coin"></span>
+    <span class="mobile-bottom-label">Market</span>
+  </button>
+  <button class="mobile-nav-btn scan" id="mnav-scan" onclick="showView('scan',this)" aria-label="Scan Cards">
+    <span class="mobile-icon icon-camera"></span>
+    <span class="mobile-bottom-label">Scan</span>
+  </button>
+</div>
+<!-- HUB -->
+
+<div id="view-hub" class="view active">
+  <div class="highlights-section chase-section" id="chaseSection" style="display:none">
+    <div class="section-heading">🎯 CHASE CARDS</div>
+    <div class="highlights-strip" id="chaseStrip"></div>
+  </div>
+  <div class="highlights-section" id="highlightsSection" style="display:none">
+    <div class="section-heading">⭐ FAVOURITES</div>
+    <div class="highlights-strip" id="highlightsStrip"></div>
+  </div>
+  <div class="hub">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+      <input id="searchInput" type="text" placeholder="Search sets by name or series…" oninput="onSearch()">
+      <span class="search-results-count" id="searchCount"></span>
+    </div>
+    <div class="section-heading">MY ACTIVE COLLECTIONS</div>
+    <div class="my-sets-grid" id="mySetsGrid"></div>
+    <div class="section-heading" style="margin-top:8px;">ALL SETS — CLICK TO TRACK</div>
+    <div id="allSetsContainer"><div class="sets-loading"><div class="spin-ring"></div> Loading all sets…</div></div>
+  </div>
+</div>
+
+<!-- BINDER -->
+<div id="view-binder" class="view">
+  <div class="binder-header">
+    <button class="back-btn" onclick="closeBinderView()">← Hub</button>
+    <div class="binder-set-info">
+      <div class="binder-set-name" id="binderSetName">—</div>
+      <div class="binder-set-meta" id="binderSetMeta">—</div>
+
+    </div>
+    <div class="binder-prog-wrap">
+      <div class="binder-prog-label"><span id="binderCount">0 / 0</span><span id="binderPct">0%</span></div>
+      <div class="binder-prog-bar"><div class="binder-prog-fill" id="binderProgFill" style="width:0%"></div></div>
+    </div>
+    <div class="binder-filters">
+      <button class="pill active" onclick="setFilter('all',this)">All</button>
+      <button class="pill" onclick="setFilter('owned',this)">Owned</button>
+      <button class="pill" onclick="setFilter('missing',this)">Missing</button>
+      <button class="pill" onclick="setFilter('holo',this)">Holos</button>
+      <button class="pill" onclick="setFilter('rare',this)">Rares</button>
+    </div>
+    <div class="sort-wrap">
+      <select class="sort-select" id="sortSelect" onchange="onSortChange()">
+        <option value="number">Card order</option>
+        <option value="alpha">Alphabetical</option>
+        <option value="evolution">Evolution order</option>
+      </select>
+    </div>
+    <div class="layout-switcher" id="layoutSwitcher">
+      <button class="layout-btn" id="lbtn-1x1-scroll" onclick="setLayout('1x1-scroll',this)" title="Scrolling grid">
+        <svg viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="2"/></svg>
+      </button>
+      <button class="layout-btn" id="lbtn-2x2" onclick="setLayout('2x2',this)" title="2×2">
+        <svg viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+      </button>
+      <button class="layout-btn" id="lbtn-3x3" data-mobile-hide="true" onclick="setLayout('3x3',this)" title="3×3">
+        <svg viewBox="0 0 16 16"><rect x="1" y="1" width="4" height="4" rx="0.5"/><rect x="6" y="1" width="4" height="4" rx="0.5"/><rect x="11" y="1" width="4" height="4" rx="0.5"/><rect x="1" y="6" width="4" height="4" rx="0.5"/><rect x="6" y="6" width="4" height="4" rx="0.5"/><rect x="11" y="6" width="4" height="4" rx="0.5"/><rect x="1" y="11" width="4" height="4" rx="0.5"/><rect x="6" y="11" width="4" height="4" rx="0.5"/><rect x="11" y="11" width="4" height="4" rx="0.5"/></svg>
+      </button>
+      <button class="layout-btn" id="lbtn-4x4" data-mobile-hide="true" onclick="setLayout('4x4',this)" title="4×4">
+        <svg viewBox="0 0 16 16"><rect x="1" y="1" width="3" height="3" rx="0.3"/><rect x="5" y="1" width="3" height="3" rx="0.3"/><rect x="9" y="1" width="3" height="3" rx="0.3"/><rect x="13" y="1" width="3" height="3" rx="0.3"/><rect x="1" y="5" width="3" height="3" rx="0.3"/><rect x="5" y="5" width="3" height="3" rx="0.3"/><rect x="9" y="5" width="3" height="3" rx="0.3"/><rect x="13" y="5" width="3" height="3" rx="0.3"/><rect x="1" y="9" width="3" height="3" rx="0.3"/><rect x="5" y="9" width="3" height="3" rx="0.3"/><rect x="9" y="9" width="3" height="3" rx="0.3"/><rect x="13" y="9" width="3" height="3" rx="0.3"/><rect x="1" y="13" width="3" height="3" rx="0.3"/><rect x="5" y="13" width="3" height="3" rx="0.3"/><rect x="9" y="13" width="3" height="3" rx="0.3"/><rect x="13" y="13" width="3" height="3" rx="0.3"/></svg>
+      </button>
+      <button class="layout-btn" id="lbtn-5x5" data-mobile-hide="true" onclick="setLayout('5x5',this)" title="5×5">
+        <svg viewBox="0 0 16 16"><rect x="1" y="1" width="2" height="2"/><rect x="4" y="1" width="2" height="2"/><rect x="7" y="1" width="2" height="2"/><rect x="10" y="1" width="2" height="2"/><rect x="13" y="1" width="2" height="2"/><rect x="1" y="4" width="2" height="2"/><rect x="4" y="4" width="2" height="2"/><rect x="7" y="4" width="2" height="2"/><rect x="10" y="4" width="2" height="2"/><rect x="13" y="4" width="2" height="2"/><rect x="1" y="7" width="2" height="2"/><rect x="4" y="7" width="2" height="2"/><rect x="7" y="7" width="2" height="2"/><rect x="10" y="7" width="2" height="2"/><rect x="13" y="7" width="2" height="2"/><rect x="1" y="10" width="2" height="2"/><rect x="4" y="10" width="2" height="2"/><rect x="7" y="10" width="2" height="2"/><rect x="10" y="10" width="2" height="2"/><rect x="13" y="10" width="2" height="2"/><rect x="1" y="13" width="2" height="2"/><rect x="4" y="13" width="2" height="2"/><rect x="7" y="13" width="2" height="2"/><rect x="10" y="13" width="2" height="2"/><rect x="13" y="13" width="2" height="2"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="highlights-section chase-section" id="binderChaseSection" style="display:none">
+    <div class="section-heading">🎯 CHASE CARDS</div>
+    <div class="highlights-strip" id="binderChaseStrip"></div>
+  </div>
+  <div class="highlights-section" id="binderHighlightsSection" style="display:none">
+    <div class="section-heading">⭐ FAVOURITES</div>
+    <div class="highlights-strip" id="binderHighlightsStrip"></div>
+  </div>
+  <div class="binder-book-wrap" id="binderBookWrap">
+    <div class="binder-loading"><div class="spin-ring"></div> Loading cards…</div>
+  </div>
+</div>
+
+<!-- POKÉDEX -->
+<div id="view-dex" class="view">
+  <div class="dex-view">
+    <div class="dex-search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+      <input id="dexSearchInput" type="text" placeholder="Search Pokémon by name or number… e.g. Charizard, 006" oninput="onDexSearch()">
+    </div>
+    <div class="dex-types" id="dexTypeFilters"></div>
+    <div id="dexGrid"><div class="dex-loading"><div class="spin-ring"></div> Loading Pokédex…</div></div>
+  </div>
+</div>
+
+<!-- POKÉDEX DETAIL MODAL -->
+<div class="dex-pokemon-modal" id="dexPokeModal" onclick="closeDexModal(event)">
+  <div class="dex-poke-panel" id="dexPokePanel" onclick="event.stopPropagation()">
+    <div style="padding:60px;text-align:center;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:12px;" id="dexPokeLoading">
+      <div class="spin-ring"></div> Loading Pokédex entry…
+    </div>
+  </div>
+</div>
+
+<!-- MARKET VALUES -->
+<div id="view-market" class="view">
+  <div class="market-view">
+    <div class="market-search-wrap">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+      <input id="marketSearchInput" type="text" placeholder="Search for a Pokémon card to see market prices… e.g. Charizard, Pikachu" oninput="onMarketSearch()">
+    </div>
+    <div class="market-filters-row">
+      <select class="market-grade-select" id="marketGradeSelect" onchange="renderMarketResults()">
+        <option value="raw">Raw (Ungraded)</option>
+        <option value="psa10">PSA 10 (Gem Mint)</option>
+        <option value="psa9">PSA 9 (Mint)</option>
+        <option value="psa8">PSA 8 (NM-MT)</option>
+        <option value="psa7">PSA 7 (Near Mint)</option>
+        <option value="cgc10">CGC 10 (Pristine)</option>
+        <option value="cgc9">CGC 9.5 (Gem Mint)</option>
+        <option value="bgs10">BGS 10 (Pristine)</option>
+        <option value="bgs9">BGS 9.5 (Gem Mint)</option>
+      </select>
+      <select class="market-finish-select" id="marketFinishSelect" onchange="renderMarketResults()">
+        <option value="auto">Any finish (Auto)</option>
+        <option value="holofoil">Holofoil</option>
+        <option value="reverseHolofoil">Reverse Holo</option>
+        <option value="normal">Normal</option>
+        <option value="1stEditionHolofoil">1st Edition Holo</option>
+        <option value="1stEditionNormal">1st Edition Normal</option>
+      </select>
+    </div>
+    <div class="market-grade-note" id="marketGradeNote">Raw prices sourced from TCGplayer and Cardmarket. PSA/CGC/BGS graded prices are estimated multipliers based on typical market premiums — for reference only.</div>
+    <div class="market-poke-chips" id="marketPokeChips"></div>
+    <div class="market-info-bar"><span class="market-result-count" id="marketResultCount"></span></div>
+    <div id="marketCardsArea"><div class="market-empty">Search for a Pokémon above to see current market prices</div></div>
+  </div>
+</div>
+
+<!-- CARD SCANNER -->
+<div id="view-scan" class="view">
+  <div class="scan-view">
+    <div class="section-heading" style="margin-bottom:16px;">SCAN A CARD TO ADD IT TO YOUR COLLECTION</div>
+
+    <!-- Camera -->
+    <div class="scan-camera-wrap" id="scanCameraWrap" style="display:none">
+      <video id="scanVideo" autoplay playsinline muted></video>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scan-hint">Centre the card within the frame</div>
+    </div>
+
+    <!-- Upload fallback (shown when camera is off) -->
+    <div class="scan-upload-area" id="scanUploadArea" onclick="document.getElementById('scanFileInput').click()">
+      <div class="scan-upload-icon">📷</div>
+      <div class="scan-upload-text">Upload a photo of your card</div>
+      <div class="scan-upload-sub">or use your camera below — works best in good lighting</div>
+    </div>
+    <input type="file" id="scanFileInput" accept="image/*" capture="environment" onchange="onScanFileChosen(this)">
+
+    <div class="scan-controls">
+      <button class="scan-btn primary" id="scanStartBtn" onclick="startCamera()">📷 Use Camera</button>
+      <button class="scan-btn" id="scanCaptureBtn" onclick="captureAndIdentify()" style="display:none">⚡ Identify Card</button>
+      <button class="scan-btn danger" id="scanStopBtn" onclick="stopCamera()" style="display:none">Stop Camera</button>
+    </div>
+
+    <div class="scan-status" id="scanStatus">Point your camera at a Pokémon card, then tap Identify Card — or upload a photo above.</div>
+
+    <!-- Result confirmation -->
+    <div class="scan-result" id="scanResult">
+      <div class="scan-result-grid">
+        <img class="scan-result-img" id="scanResultImg" src="" alt="">
+        <div class="scan-result-body">
+          <div class="scan-result-label">Identified Card</div>
+          <div class="scan-result-name" id="scanResultName">—</div>
+          <div class="scan-result-meta" id="scanResultMeta">—</div>
+          <div class="scan-result-actions">
+            <button class="scan-result-add" id="scanResultAddBtn" onclick="confirmAddCard()">✓ Add to Collection</button>
+            <button class="scan-result-skip" onclick="dismissScanResult()">✕ Not right</button>
+          </div>
+          <div class="scan-result-candidates" id="scanResultCandidates"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan history -->
+    <div class="scan-history" id="scanHistoryWrap" style="display:none">
+      <div class="scan-history-title">Recently Scanned</div>
+      <div class="scan-history-list" id="scanHistoryList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM SETS -->
+<div id="view-deck" class="view">
+  <div class="deck-view">
+    <div class="deck-layout">
+      <div>
+        <div class="deck-search-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+          <input id="deckSearchInput" type="text" placeholder="Search for a Pokémon across all sets — e.g. Pikachu, Charizard, Psyduck…" oninput="onDeckSearch()">
+        </div>
+        <div class="pokemon-suggestions" id="pokeSuggestions"></div>
+        <div class="deck-results-info" id="deckResultsInfo"></div>
+        <div id="deckCardsArea"><div style="padding:48px;text-align:center;color:var(--muted);font-size:13px;">Search for any Pokémon above, then click cards to add them into your custom set</div></div>
+      </div>
+      <div>
+        <div class="deck-panel">
+          <div class="deck-panel-title">
+            <span>Custom Set</span>
+            <span style="font-size:13px;color:var(--muted);font-family:'DM Sans',sans-serif;" id="deckCardCount">0 cards</span>
+          </div>
+          <div class="deck-panel-meta">Build your own collector set from cards across all series. Click any result to add or remove it from the current custom set.</div>
+          <input class="deck-name-input" id="deckNameInput" type="text" placeholder="Custom set name…" value="My Custom Set">
+          <div class="deck-count-bar" id="deckCountBar"></div>
+          <div class="deck-list" id="deckList"><div class="deck-empty">No cards yet</div></div>
+          <div class="deck-actions">
+            <button class="deck-btn" onclick="newCustomDeck()">New Custom Set</button>
+            <button class="deck-btn" onclick="clearDeck()">Clear</button>
+            <button class="deck-btn" onclick="saveDeck()">Save</button>
+            <button class="deck-btn primary" onclick="exportDeck()">Export ↓</button>
+          </div>
+          <div class="saved-decks-wrap" id="savedDecksWrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-backdrop" id="cardModalBackdrop" onclick="closeCardModal(event)">
+  <div class="card-modal" onclick="event.stopPropagation()">
+    <div class="card-modal-grid">
+      <div class="card-modal-media" id="cardModalMedia"></div>
+      <div class="card-modal-body">
+        <div class="card-modal-top">
+          <div>
+            <div class="card-modal-name" id="cardModalName">Card</div>
+            <div class="card-modal-meta" id="cardModalMeta">Set • #000</div>
+          </div>
+          <button class="card-modal-close" onclick="closeCardModal()">×</button>
+        </div>
+        <div class="card-modal-stats">
+          <div class="stat-box">
+            <div class="stat-label">Current value</div>
+            <div class="stat-value" id="cardModalValue">—</div>
+            <div class="stat-sub" id="cardModalValueSub">Market value in GBP</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Showing</div>
+            <div class="stat-value" id="cardModalFinish">Auto</div>
+            <div class="stat-sub" id="cardModalFinishSub">Most common available finish</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Owned</div>
+            <div class="stat-value" id="cardModalOwned">No</div>
+            <div class="stat-sub" id="cardModalOwnedSub">Not marked in your binder</div>
+          </div>
+        </div>
+        <div class="card-modal-controls">
+          <div>
+            <label class="control-label" for="cardFinishSelect">Finish / variant</label>
+            <select class="control-select" id="cardFinishSelect" onchange="setActiveCardFinish(this.value)"></select>
+          </div>
+          <button class="owned-toggle-btn secondary" id="cardOwnedToggleBtn" onclick="toggleActiveCardOwned()">Mark owned</button>
+        </div>
+        <div class="card-modal-copy" id="cardModalCopy">Choose how you want this card priced. If you leave it on Auto, PokéBinder uses the most common available market price for that card.</div>
+        <div class="card-modal-tags" id="cardModalTags"></div>
+        <div class="modal-action-row">
+          <button class="modal-action-btn" id="cardFavouriteToggleBtn" onclick="toggleActiveCardHighlight()">★ Favourite</button>
+          <button class="modal-action-btn" id="cardChaseToggleBtn" onclick="toggleActiveCardChase()">🎯 Chase card</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- PROFILE -->
+<div id="view-profile" class="view">
+  <div class="profile-view">
+    <div class="profile-grid">
+      <div class="profile-card">
+        <div class="profile-title">Your Profile</div>
+        <div class="profile-sub">Manage your collector details and personalise your binder background across devices.</div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileDisplayName">Display name</label>
+          <input id="profileDisplayName" class="profile-input" type="text" placeholder="Your display name">
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileCollectorName">Collector name</label>
+          <input id="profileCollectorName" class="profile-input" type="text" placeholder="Optional collector nickname">
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileEmail">Email</label>
+          <input id="profileEmail" class="profile-input" type="email" placeholder="Email" disabled>
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label">Avatar image</label>
+          <div class="profile-upload-row">
+            <div class="profile-avatar-preview" id="profileAvatarPreview">PB</div>
+            <input id="profileAvatarUpload" class="profile-file-input" type="file" accept="image/*">
+            <button class="profile-btn" type="button" onclick="uploadAvatarImage()">Upload avatar</button>
+          </div>
+          <div class="profile-help">Upload a square image for best results. If no avatar is uploaded, your initials are shown.</div>
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileBackgroundMode">Background style</label>
+          <select id="profileBackgroundMode" class="profile-select" onchange="onProfileBackgroundInput()">
+            <option value="default">Default app background</option>
+            <option value="custom">Custom image URL</option>
+            <option value="none">No background image</option>
+          </select>
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileBackgroundUrl">Background image URL</label>
+          <input id="profileBackgroundUrl" class="profile-input" type="text" placeholder="https://example.com/your-image.jpg" oninput="onProfileBackgroundInput()">
+          <div class="profile-help">Use a direct image URL ending in .jpg, .png or .webp for best results, or upload an image from your device below.</div>
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label">Upload background image</label>
+          <div class="profile-upload-row">
+            <input id="profileBackgroundUpload" class="profile-file-input" type="file" accept="image/*">
+            <button class="profile-btn" type="button" onclick="uploadBackgroundImage()">Upload background</button>
+          </div>
+          <div class="profile-help">Uploaded backgrounds are saved to your account and can be used across devices.</div>
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileBgOpacity">Background opacity</label>
+          <input id="profileBgOpacity" class="profile-range" type="range" min="0" max="0.45" step="0.01" value="0.18" oninput="onProfileBackgroundInput()">
+          <div class="profile-help">Current opacity: <span id="profileBgOpacityValue">0.18</span></div>
+        </div>
+
+        <div class="profile-field">
+          <label class="profile-label" for="profileNewPassword">New password</label>
+          <input id="profileNewPassword" class="profile-input" type="password" placeholder="Leave blank to keep current password">
+        </div>
+
+        <div class="profile-actions">
+          <button class="profile-btn primary" onclick="saveProfileSettings()">Save profile</button>
+          <button class="profile-btn" onclick="resetProfileBackground()">Reset background</button>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-title">Preview</div>
+        <div class="profile-sub">This is how your binder background and collector details will look.</div>
+        <div class="profile-preview" id="profilePreview">
+          <div class="profile-preview-overlay">
+            <div class="profile-preview-name" id="profilePreviewName">PokéBinder Collector</div>
+            <div class="profile-preview-meta" id="profilePreviewMeta">Your personalised binder theme</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="installBanner">
+  <span style="font-size:20px;">📲</span>
+  <span class="ib-text"><strong>Install PokéBinder</strong> — add to home screen</span>
+  <button class="ib-btn" onclick="installApp()">Install</button>
+  <button class="ib-dismiss" onclick="this.closest('#installBanner').style.display='none'">×</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Google Vision API used for card scanning (no external script needed) -->
+<script>
+// ════ SUPABASE CONFIG ════
+const SUPABASE_URL='https://oakdbbzdqwurpjnoqhmu.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_utiXk-8YPG57MWlrYdWgvg_7xaufYYt';
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+const SCAN_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/scan-card`;
+let currentUser=null;
+let currentProfileSettings={display_name:'',collector_name:'',background_mode:'default',background_url:'',background_opacity:0.18,avatar_url:''};
+
+async function refreshCurrentUser(){
+  if(!supabaseClient) return null;
+  const { data, error } = await supabaseClient.auth.getUser();
+  if(error) return currentUser;
+  currentUser = data?.user || currentUser;
+  return currentUser;
+}
+
+// ════ STATE ════
+let allSets=[];
+let mySets=new Set(JSON.parse(localStorage.getItem('pb_mySets')||'[]'));
+let ownedCards=JSON.parse(localStorage.getItem('pb_ownedCards')||'{}');
+let mergedSets=JSON.parse(localStorage.getItem('pb_mergedSets')||'[]');
+let savedDecks=JSON.parse(localStorage.getItem('pb_decks')||'[]');
+let cardFinishes=JSON.parse(localStorage.getItem('pb_cardFinishes')||'{}');
+let highlightedCards=JSON.parse(localStorage.getItem('pb_highlights')||'[]'); // [{id,name,setId,setName,img}]
+let chaseCards=JSON.parse(localStorage.getItem('pb_chaseCards')||'[]'); // [{id,name,setId,setName,img}]
+let currentSetId=null;
+let currentSetCards=[];
+let currentFilter='all';
+let currentSort='number';
+let currentPage=0;
+let binderLayout=localStorage.getItem('pb_layout')||'3x3'; // '1x1-scroll','2x2','3x3','4x4','5x5'
+let searchQuery='';
+let currentDeck=[];
+let deckSearchResults=[];
+let marketSearchResults=[];
+let dexSearchResults=[];
+let dexAllPokemon=[];
+let dexActiveType='all';
+let mergeSelections={};
+let deckDebounce=null;
+let dexDebounce=null;
+let marketDebounce=null;
+let activeCard=null;
+let fxRates={EUR:0.86,USD:0.79,GBP:1};
+
+const POPULAR=['Charizard','Pikachu','Mewtwo','Gengar','Eevee','Blastoise','Venusaur','Psyduck','Snorlax','Mew','Lucario','Rayquaza'];
+
+
+function getDefaultBackgroundDataUrl(){
+  return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wgARCAYABAADASIAAhEBAxEB/8QAGgAAAwEBAQEAAAAAAAAAAAAAAQIDBAAFBv/EABkBAAMBAQEAAAAAAAAAAAAAAAABAgMEBf/aAAwDAQACEAMQAAAClq8W/L0el2W0aaJLyMy6/N0j0nwbItrzaX2nNoSRXYJAqPm71XORrm8jUGsyOkyuOeLPf3Dgas6ZPS5hburPgeQI3Cflrrhh0z4hWSig4BTYdzXK3o6Z4ONs6zZfV82lp2ZvQrLiRrnPPszZ38z7nk7DTXWAyvamW5FwYkvhXzNTj7Fw8afvBHzm3f8APVW/EF1gTr1Qg7mG0KTSxeTNG/yfRm2HLG/CrDl1ACZNKXnmI6+d1DC4zsm7S0p6U1xy1Uvom76sWkzTz9eNWqMrpQQxD0mTAXXDRKJHsGXk2kOqO7uadfXwQ4dSLV6ZGHtzIE23+ZdP1z5rZX6Ozxqo99GesPIT2M0a5/WhSofHq8mmfQ8p89fU8j0fNaIDZ79J+qfdbzu15fR7PovPu7hcjpLyykOfqPAq+B5rjwRyFbH24vUeYok6xPn6pZ6t6Hl+pvjwPUhDRCK+evk3TrrW3ZVLVGxIzW8trH72D19EKtzju7qUfmfrPlysI4aohlBTNnPUmys56yESvUvWTD6OPRJ2itbmFUzJ5sln2Y9ObmR6yYrw6bce7O/R7Lqw14jk2KlroWA8R56IDg32W+O44d2mQ7gHA80O4C7u4Pcn3c/Q9cvJDBuGsecPXg15x0wadpsqcKyNnvfL6Mz6Bc+nI87nyvf1EwVECFm6pwAtFgc8Uce2OddB3VwkEAvmennz0wF1x6e7tAs/DlTCuapG86LyzaAhJm65uPETpj9vBi6cveHdefYN/wA9NYfZ8b6lXA9XJqGlJ3h+583qfRbZWI4d1z3dwH5D6H5SqYcLXIRUju4GIM30rRFw41PAENu/x75dG7LrEaz6dW0ybslRnK9ryuVZF9OR4037serDVuz0mrKVERwZOOiDcIzTXPl1Y7jgRU93cLhyge4h3EB6zZL8+9IGrHfd2c+ZrnrbrkXoeDH7mDQwC09szRQnXTieX6+XHry1LqZ0eRAUmOZoZOhOAgUtlLWz0fB36YehynXAIyZN8mvk86XxO4ogN325NZOoYWiGAE6FeqDy0EzglDR5/ted5W0e189errV7fl9meoPMMmqSNFN8x9T8p0R9daNiO4hro4vAbfP3XQUrUd3FoDuBmDRosnSoDKWmQgHYJN22+a4/Wz5LZ71HArBxG3GXSiHVWmvWri0YdHcoVbZ5wLbLFkudGdRrk6AOWA5okcA7lAjixXa0uT+jXLTOGaNM+yDNONE5N94ziLY9eQroa5j8gD1d48mjQY3AscyZF9GbTlu4Ais9DpaHL0hIKfdv0Xjj9EdeBmZyqiLS3xRtemd/QEGPtbJ4Rt5PINRRjXbzMmrNQdiAQ2e5CCdOdG4BWyynSusepV6Ibt4nqw0jRs+fTXH3PNzil3crCvI5otJhx5WiVdMjpzZmVvNgyg3AhRemr5kLggcFLZiroGUQdeExRh7rZq4dNezQa15ZG8+4dUEdzRBABhwdw4OJcEpofPRKBVe542yvz2zdrlfRgsn6jxphSi3JrTgptEYh5rZjvO3OxnTEPQyaZKoekHRFVlRwvoxPFbTj2TSFWz0p6/i+nWGgCLxtmEo07Omm7rpm2cPysSKT5orEJ28/0PEt7tyGRhDQheKjbMZTY7PY0MCtrh3Uu7gzgQHd3AO4Mji9SV5edWb74ynSbV4Umqde5zzq82JVi0QQ5ZWUfMrgFpIO7g0e7gPDgrSDTQKO55kZNgpKbhwjw4Cp4DwIHuIDiwKddovLVxNryqD8pZRpFPPTfuUeJzTpaPS83ofujzd+Lz49WN6so5uC3TSKvkrL2DuivMW8OjncKCiWAmeLBWiGLtv85pPoh5fqPGeS+HPS8Jzd9pWiptML55nu6p4jkDDvDPFm67nuYPIYXtb8u6Vnlq87HTvN9BDTzpepLVHlCb8pAjotJgpt0jPskJqwPS+J5GLL6vl74LMjXN0PKu5OapxM1yjml6iCAIaDcBkdwgO5osvJ9w5h4cDEFBKMPirAeHB3dwN3cnzigKX0TeT0/PZP1MM7Rc+aLO7iwleA0kUehrzHJpk3o151NmLTOhnRuiFZoNJVV2yhPbDnROsI3F1AqZ8RUCkwq0LzJis+TuirL0Uy0Tr0qMtoWuLomoqMugIh+RgJmwMEmzyfcxarF8L07UvE9n0PEufSxeTty6dDZ+VVWbOOza0uYWdAK8ssjuHylKZ4Bui441lbJvu48pqLrkoZBNNkHbh01yFajWIGbUEVDo8xnhzXdxEOIGO4gCGRxHBzAjQgi5+cadxAnmR2pPUz26h7DXOmqdLydF56REaJKpCysUEtKKcHoujYOjSUNmd86WaWrPtLTOe4dogehUZPgSCjua5aKMDiJeZGneQTuZtLfg6ad3MqAYtfb8VlP0clvlEBaBbJmQu9cmpPgech2tU5nZBbM2LytYGY6K21cey3MLzMc9JneaSdAcR0QPzDOkWk7ueLbj0yOnElR6j+boytYacmuC9xuOHOmCGm593XDr3I5+ZVNCKkggRZd6rElEaU8APcU+4hosCnNgwcQQ5g4dafp56VFZYbvSVQUogq+dtyXLLoA4BlbVSlTTlsn6Mx2L5OiVo6XVCTbHrlSNrp5Tv6b84+pnqcp5aTgcBR+CXKagunJ9wYOaZRRpFO4DTXNNhsDNPb7Hz+jM9aGMzXcCta6sllFTPqyvm83ZrGWH0Dp+Xq2LK8hbJPZM0VyncXCFu0FDdQk7CEOUyzKnMlz86kLMLPLaCPNl62PTPMCmuRZSnyUUFBFQWSyfBjNw7uvMg8wMpR3dw148HcwTK0mJjwGCCI8OGzJ6E1o0Stz9DgiaWdYVOiKFpo15rNYO1m7XGnOG6Qs1g6LpFXNzl5mqCURKztFii0jQHjLeYs1nGuQY8/pi483tefXHN2iNLivC5u5MhXVKwAPWBC5g01ZVCbPFx6q4K53qKtGhHAOsm4zZlo8SBwO86VHnx2Y8epUM6fcEua86I4cGcCodwcEFZMbgWuBAcpAdC4a8pby6uVT3JshQO4856webkvdU8CGjx4FPcgggfA8HFeVOlEE3cAHdwuZWDR6Pn+rh0TsFi6HPwnXhS4FWmW2mW2TckPzOrk3jR03aPHpMenunQMLxXBlR0ylK7dWW17Gc8mvqucGf1UK8za9E+w7zefzkPo/K0fmLplcnomlR5UmzH0PPTXmF5kydDtKiskLLryOnXX52jPXVQWzdz3GNnW++WVr8ASvny5KRzdXKQ3kW3m9Gfo7PO9LK4Y1yaz6nJOHpGYtEd1LiOA93AAQHEc15PAdfIQRNLwLktzql5pp93dcd3EOLOnNaKAB5rm4TQR0CgIDh3AAwaY9oml2Z1m/fzeY2daujqGvDQjNzLSJHB004p16bnrc4EhopVsuenaqFTg6snTRpwKykNujzdMztZSZEcwBrnbPObTTCvGX42T3/FrTInoitIl1mreb6PnVBE325l4qmSAKgVpvnUJ2aLKtnsfO2zPoKZvRM83PINZz30iXn3zc3TOSJVXfIWkyasGpt7KHo7QZ57+7smeIECODiOA8QHA8A7uDyAR18Y7lBu4BcK0X0qTpHuLkMrMfXiaKaZFIdxEw7lYD60Y1dGu7uDgeE2jPpm6K5z0mdvoS/n9voeU1tTz2Zc5ja0dGiJCk1RKClqMhFXXhLqB2ejmfIccwDSjE2x+h56QK879e/h+7pzEV7TPiDc8jhEvD9/wMeiQpKekqYMFZamp4PR8+spq6a854c0CZp1HcFOSk6JzgGKlN/R8iqX0mj5j1IXtBTWfmozcvZDRn7SFKC5bBte58LvRxa88dB9KejKdiysqehnTkN4Hja8ZsAhPu4Ae5WvI4Hr4wrzBhzpv3dFhXSpLpUJEdSLo6ajuDjxDgyJhlLTKQBB5PuPB2jPeauanHWW3BRm1fPAVV2pIUYRnQ0knZAlzBgZS3TRnrldl7sdO48nxHBs2eZ6c5DzPURnm9uqV5vrRtWevgenDu7hdOkE8XnMMO5o2yFBjVhDrLy43G/KFZagEhyo4MZl5BJQLCTzbnrTURtwtUMnT1+v886XtPOnLuka57Q4ilObQ28+SpTWBtxhP18WiePcvHp1cBKjdl0RJQETp3DmGVMznzyO6+TkdEUpJ5ph3KgvdUO3LNLwFy7IyY7ua51eaCPMOKs57uA3CMmSpBuHB7slXm6EGiNJFoKk8vD5hwNykXMvCaZkaAgVL2zlrab9ybQMqOnG7pnD6cEFqbx7i9NpuQWV3DPw3hZ+Wme/o18oKpgwNgRZhJrLTL7fXzfMz1w0hUqrABzRukQm6dUPw5MBuaLy5VfkM2VYi5o0D19Hjenzb6MOxqjzm1Zrxnk0LfLn9Fb1t5kLQrDfojqy683cI3PJsqHhfOKfd0ag9zDg2+VpEuB35eVgBdKTTIUAsrsYFJpO7rgspA8CDdxmlQhyHUjKsADBgHEILBx61CRp6evBtw1lg3edcg8Ll+V0x3cmndO+VgStl5kcmg54/S58+nk7PJ551trlPkeljmSU4F36GWQmfQ9Lwvo7wnk9AaZ+Em449GGOjItTAarAxEvthtOVdUrac/n/P/YeXofPiiO+lVamSt1RNirXEgGHPNKrqwvPgYkTZRyKuTZgT9zX8xui/VkazEad1oyrlaxNbZWRqhnYo/CUlAGd0z27uCvhwoXx9GbfmLo15crAbujxSgipYgqijK0p4tdwIc4aaAKBwYOQRw3DBCvxBSwZZ40GpvGae2W8Vy3sqzunKOmUvnoVorilM9TWmejiixQWiJnR6nEcXq8GAKW4J8yNsOAP3civ0Hk+rpzV4HTEchRn+d9t5382/syh+VXXLMi1qtYkkq00QzClfzbR1hQ3WpT0M5nLVlc8yNUr3cDcDNL1FGKTAqnnm38/1PNBD3aZtqx8j1tHg0jT3O8rTN7DlKeo5iF0kEUnwT4jh8OztW86KbYOrDTI93AVIG1EM0ARUUYdGgXhcdxCO7uY5UzQHc55lYad3CcHk...';
+}
+function getProfileSettingsFromUser(user){
+  const meta=user?.user_metadata || {};
+  return {
+    display_name: meta.display_name || '',
+    collector_name: meta.collector_name || '',
+    background_mode: meta.background_mode || 'default',
+    background_url: meta.background_url || '',
+    background_opacity: Number.isFinite(Number(meta.background_opacity)) ? Number(meta.background_opacity) : 0.18,
+    avatar_url: meta.avatar_url || ''
+  };
+}
+function getResolvedBackgroundImage(settings){
+  if(!settings || settings.background_mode==='default') return 'url('+getDefaultBackgroundDataUrl()+')';
+  if(settings.background_mode==='custom' && settings.background_url) return 'url("'+settings.background_url.replace(/"/g,'&quot;')+'")';
+  return 'none';
+}
+function getStorageBucketName(){
+  return 'profile-backgrounds';
+}
+function getAvatarUrl(){
+  return getProfileSettingsFromUser(currentUser || {}).avatar_url || '';
+}
+function setAvatarPreview(target, url, fallback){
+  if(!target) return;
+  target.innerHTML = '';
+  if(url){
+    const img=document.createElement('img');
+    img.src=url;
+    img.alt='Avatar';
+    target.appendChild(img);
+  } else {
+    target.textContent=fallback || 'PB';
+  }
+}
+function applyBackgroundSettings(settings){
+  const resolved=getResolvedBackgroundImage(settings);
+  document.documentElement.style.setProperty('--bg-img', resolved);
+  document.documentElement.style.setProperty('--bg-opacity', String(settings?.background_opacity ?? 0.18));
+  let styleEl=document.getElementById('dynamicBgOpacity');
+  if(!styleEl){
+    styleEl=document.createElement('style');
+    styleEl.id='dynamicBgOpacity';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent='body::before{opacity:'+(settings?.background_opacity ?? 0.18)+' !important;}';
+}
+function fillProfileForm(user){
+  const s=getProfileSettingsFromUser(user || currentUser || {});
+  currentProfileSettings=s;
+  const dn=document.getElementById('profileDisplayName');
+  const cn=document.getElementById('profileCollectorName');
+  const em=document.getElementById('profileEmail');
+  const bm=document.getElementById('profileBackgroundMode');
+  const bu=document.getElementById('profileBackgroundUrl');
+  const bo=document.getElementById('profileBgOpacity');
+  if(dn) dn.value=s.display_name;
+  if(cn) cn.value=s.collector_name;
+  if(em) em.value=user?.email || currentUser?.email || '';
+  if(bm) bm.value=s.background_mode;
+  if(bu) bu.value=s.background_url;
+  if(bo) bo.value=s.background_opacity;
+  setAvatarPreview(document.getElementById('profileAvatarPreview'), s.avatar_url, getAvatarLabel());
+  onProfileBackgroundInput();
+  updateHeaderUserUI();
+}
+function onProfileBackgroundInput(){
+  const mode=document.getElementById('profileBackgroundMode')?.value || 'default';
+  const url=document.getElementById('profileBackgroundUrl')?.value.trim() || '';
+  const opacity=Number(document.getElementById('profileBgOpacity')?.value || 0.18);
+  const displayName=document.getElementById('profileDisplayName')?.value.trim() || 'PokéBinder Collector';
+  const collectorName=document.getElementById('profileCollectorName')?.value.trim() || 'Your personalised binder theme';
+  const urlInput=document.getElementById('profileBackgroundUrl');
+  if(urlInput) urlInput.disabled = mode!=='custom';
+  const valEl=document.getElementById('profileBgOpacityValue');
+  if(valEl) valEl.textContent=opacity.toFixed(2);
+  document.documentElement.style.setProperty('--profile-preview-img', getResolvedBackgroundImage({background_mode:mode, background_url:url, background_opacity:opacity}));
+  document.documentElement.style.setProperty('--profile-preview-opacity', String(opacity));
+  const nameEl=document.getElementById('profilePreviewName');
+  const metaEl=document.getElementById('profilePreviewMeta');
+  if(nameEl) nameEl.textContent=displayName;
+  if(metaEl) metaEl.textContent=collectorName;
+}
+async function uploadFileToStorage(file, folder){
+  if(!supabaseClient || !currentUser){ updateAuthStatus('Log in first.'); return null; }
+  if(!file){ updateAuthStatus('Choose an image first.'); return null; }
+  if(!file.type || !file.type.startsWith('image/')){ updateAuthStatus('Please upload an image file.'); return null; }
+  if(file.size > 5 * 1024 * 1024){ updateAuthStatus('Please use an image smaller than 5MB.'); return null; }
+  const ext=(file.name.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g,'').toLowerCase() || 'jpg';
+  const filePath=`${currentUser.id}/${folder}-${Date.now()}.${ext}`;
+  const { error } = await supabaseClient.storage.from(getStorageBucketName()).upload(filePath, file, { upsert: true });
+  if(error){ updateAuthStatus(error.message); return null; }
+  const { data } = supabaseClient.storage.from(getStorageBucketName()).getPublicUrl(filePath);
+  return data?.publicUrl || null;
+}
+
+async function uploadBackgroundImage(){
+  const input=document.getElementById('profileBackgroundUpload');
+  const file=input?.files?.[0];
+  const publicUrl=await uploadFileToStorage(file, 'background');
+  if(!publicUrl) return;
+  const mode=document.getElementById('profileBackgroundMode');
+  const url=document.getElementById('profileBackgroundUrl');
+  if(mode) mode.value='custom';
+  if(url) url.value=publicUrl;
+  onProfileBackgroundInput();
+  updateAuthStatus('Background uploaded. Click Save profile to keep it.');
+  if(input) input.value='';
+}
+
+async function uploadAvatarImage(){
+  const input=document.getElementById('profileAvatarUpload');
+  const file=input?.files?.[0];
+  const publicUrl=await uploadFileToStorage(file, 'avatar');
+  if(!publicUrl) return;
+  const existing=getProfileSettingsFromUser(currentUser);
+  const { error } = await supabaseClient.auth.updateUser({
+    data:{
+      display_name: existing.display_name || '',
+      collector_name: existing.collector_name || '',
+      background_mode: existing.background_mode || 'default',
+      background_url: existing.background_url || '',
+      background_opacity: existing.background_opacity ?? 0.18,
+      avatar_url: publicUrl
+    }
+  });
+  if(error){ updateAuthStatus(error.message); return; }
+  await refreshCurrentUser();
+  fillProfileForm(currentUser);
+  updateHeaderUserUI();
+  updateAuthStatus('Avatar uploaded.');
+  if(input) input.value='';
+}
+
+async function saveProfileSettings(){
+  if(!supabaseClient || !currentUser){ updateAuthStatus('Log in first to save your profile.'); return; }
+  const existing=getProfileSettingsFromUser(currentUser);
+  const updates={
+    data:{
+      display_name: document.getElementById('profileDisplayName')?.value.trim() || '',
+      collector_name: document.getElementById('profileCollectorName')?.value.trim() || '',
+      background_mode: document.getElementById('profileBackgroundMode')?.value || 'default',
+      background_url: document.getElementById('profileBackgroundUrl')?.value.trim() || '',
+      background_opacity: Number(document.getElementById('profileBgOpacity')?.value || 0.18),
+      avatar_url: existing.avatar_url || ''
+    }
+  };
+  const newPassword=document.getElementById('profileNewPassword')?.value.trim() || '';
+  if(newPassword) updates.password=newPassword;
+  const { error } = await supabaseClient.auth.updateUser(updates);
+  if(error){ updateAuthStatus(error.message); return; }
+  await refreshCurrentUser();
+  fillProfileForm(currentUser);
+  applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+  const pw=document.getElementById('profileNewPassword'); if(pw) pw.value='';
+  updateAuthStatus('Profile saved.');
+}
+function resetProfileBackground(){
+  const mode=document.getElementById('profileBackgroundMode');
+  const url=document.getElementById('profileBackgroundUrl');
+  const opacity=document.getElementById('profileBgOpacity');
+  if(mode) mode.value='default';
+  if(url) url.value='';
+  if(opacity) opacity.value='0.18';
+  const upload=document.getElementById('profileBackgroundUpload'); if(upload) upload.value='';
+  onProfileBackgroundInput();
+  updateHeaderUserUI();
+}
+
+
+function getProfileDisplayName(){
+  const s=getProfileSettingsFromUser(currentUser || {});
+  return s.display_name || s.collector_name || currentUser?.email?.split('@')[0] || 'Collector';
+}
+
+function getAvatarLabel(){
+  const name=getProfileDisplayName().trim();
+  const parts=name.split(/\s+/).filter(Boolean);
+  if(parts.length>=2) return (parts[0][0]+parts[1][0]).toUpperCase();
+  return (name.slice(0,2) || 'PB').toUpperCase();
+}
+
+function updateHeaderUserUI(){
+  const authInline=document.getElementById('authInline');
+  const userMenuWrap=document.getElementById('userMenuWrap');
+  const avatarBtn=document.getElementById('avatarBtn');
+  const dropdownName=document.getElementById('userDropdownName');
+  const authStatus=document.getElementById('authStatus');
+
+  const mobileProfileBtn=document.getElementById('mnav-profile');
+
+  if(currentUser){
+    if(authInline) authInline.style.display='none';
+    if(userMenuWrap) userMenuWrap.style.display='';
+    if(mobileProfileBtn) mobileProfileBtn.style.display='';
+    const label=getAvatarLabel();
+    const avatarUrl=getAvatarUrl();
+    if(avatarBtn){
+      avatarBtn.removeAttribute('title');
+      setAvatarPreview(avatarBtn, avatarUrl, label);
+    }
+    if(dropdownName) dropdownName.textContent=getProfileDisplayName();
+    if(authStatus) authStatus.textContent=currentUser.email || 'Logged in';
+  } else {
+    if(authInline) authInline.style.display='flex';
+    if(userMenuWrap) userMenuWrap.style.display='none';
+    if(mobileProfileBtn) mobileProfileBtn.style.display='none';
+    if(avatarBtn) setAvatarPreview(avatarBtn, '', 'PB');
+    closeUserMenu();
+  }
+}
+
+function toggleUserMenu(){
+  const dd=document.getElementById('userDropdown');
+  if(dd) dd.classList.toggle('open');
+}
+
+function closeUserMenu(){
+  const dd=document.getElementById('userDropdown');
+  if(dd) dd.classList.remove('open');
+}
+
+function isMobileMode(){
+  return window.matchMedia('(max-width: 760px)').matches;
+}
+
+function toggleMobileNav(){}
+
+function closeMobileNav(){}
+
+function normalizeBinderLayoutForMobile(){
+  if(isMobileMode() && !['1x1-scroll','2x2'].includes(binderLayout)){
+    binderLayout='2x2';
+    localStorage.setItem('pb_layout', binderLayout);
+  }
+  syncLayoutButtons();
+}
+
+function openProfileView(){
+  closeUserMenu();
+  showView('profile');
+}
+
+document.addEventListener('click', (e)=>{
+  const wrap=document.getElementById('userMenuWrap');
+  if(wrap && !wrap.contains(e.target)) closeUserMenu();
+});
+
+function save(){
+  localStorage.setItem('pb_mySets',JSON.stringify([...mySets]));
+  localStorage.setItem('pb_ownedCards',JSON.stringify(ownedCards));
+  localStorage.setItem('pb_mergedSets',JSON.stringify(mergedSets));
+  localStorage.setItem('pb_decks',JSON.stringify(savedDecks));
+  localStorage.setItem('pb_cardFinishes',JSON.stringify(cardFinishes));
+  localStorage.setItem('pb_highlights',JSON.stringify(highlightedCards));
+  localStorage.setItem('pb_chaseCards',JSON.stringify(chaseCards));
+  localStorage.setItem('pb_layout',binderLayout);
+  saveBinderToSupabase();
+}
+
+function updateAuthStatus(message){
+  const el=document.getElementById('authStatus');
+  if(el) el.textContent=message;
+}
+
+function getBinderPayload(){
+  return {
+    user_id: currentUser.id,
+    my_sets: [...mySets],
+    owned_cards: ownedCards,
+    merged_sets: mergedSets,
+    decks: savedDecks,
+    card_finishes: cardFinishes,
+    highlights: highlightedCards,
+    chase_cards: chaseCards,
+    layout: binderLayout,
+    updated_at: new Date().toISOString()
+  };
+}
+
+async function ensureProfile(user){
+  if(!supabaseClient || !user) return;
+  await supabaseClient.from('profiles').upsert({
+    id:user.id,
+    email:user.email
+  });
+}
+
+async function saveBinderToSupabase(){
+  if(!supabaseClient || !currentUser) return;
+  const payload=getBinderPayload();
+  const { error } = await supabaseClient
+    .from('binders')
+    .upsert(payload,{ onConflict:'user_id' });
+  if(error) console.error('Failed to save binder:', error);
+}
+
+async function loadBinderFromSupabase(){
+  if(!supabaseClient || !currentUser) return;
+  const { data, error } = await supabaseClient
+    .from('binders')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+
+  if(error){
+    console.error('Failed to load binder:', error);
+    return;
+  }
+
+  if(!data){
+    await saveBinderToSupabase();
+    return;
+  }
+
+  mySets=new Set(data.my_sets || []);
+  ownedCards=data.owned_cards || {};
+  mergedSets=data.merged_sets || [];
+  savedDecks=data.decks || [];
+  cardFinishes=data.card_finishes || {};
+  highlightedCards=data.highlights || [];
+  chaseCards=data.chase_cards || [];
+  binderLayout=data.layout || '3x3';
+
+  renderMySets();
+  renderAllSets();
+  renderChaseCards();
+  renderHighlights();
+  updateGlobalStats();
+  if(typeof renderSavedDecks==='function') renderSavedDecks();
+  if(currentSetId) renderBinder();
+}
+
+async function signUp(){
+  if(!supabaseClient){ updateAuthStatus('Add your Supabase URL and anon key first.'); return; }
+  const email=document.getElementById('emailInput').value.trim();
+  const password=document.getElementById('passwordInput').value.trim();
+  const { error } = await supabaseClient.auth.signUp({ email, password });
+  if(error){ updateAuthStatus(error.message); return; }
+  updateAuthStatus('Account created. Check your email if confirmation is enabled.');
+}
+
+async function signIn(){
+  if(!supabaseClient){ updateAuthStatus('Add your Supabase URL and anon key first.'); return; }
+  const email=document.getElementById('emailInput').value.trim();
+  const password=document.getElementById('passwordInput').value.trim();
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if(error){ updateAuthStatus(error.message); return; }
+  updateAuthStatus('Logged in.');
+}
+
+async function signOutUser(){
+  if(!supabaseClient){ updateAuthStatus('Supabase is not configured yet.'); return; }
+  const { error } = await supabaseClient.auth.signOut();
+  if(error){ updateAuthStatus(error.message); return; }
+  currentUser=null;
+  updateHeaderUserUI();
+  updateAuthStatus('Logged out.');
+}
+
+async function initAuth(){
+  if(!supabaseClient){
+    updateAuthStatus('Supabase not configured yet. Add your URL and anon key in the script.');
+    return;
+  }
+
+  const { data } = await supabaseClient.auth.getSession();
+  currentUser = data.session?.user ?? null;
+  if(currentUser) await refreshCurrentUser();
+
+  if(currentUser){
+    updateAuthStatus(`Logged in as ${currentUser.email}`);
+    await ensureProfile(currentUser);
+    fillProfileForm(currentUser);
+    applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+    await loadBinderFromSupabase();
+  } else {
+    updateAuthStatus('Not logged in');
+    fillProfileForm(null);
+    applyBackgroundSettings(getProfileSettingsFromUser(null));
+  }
+
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    currentUser = session?.user ?? null;
+    if(currentUser) await refreshCurrentUser();
+    if(currentUser){
+      updateAuthStatus(`Logged in as ${currentUser.email}`);
+      await ensureProfile(currentUser);
+      fillProfileForm(currentUser);
+      applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+      await loadBinderFromSupabase();
+    } else {
+      updateAuthStatus('Not logged in');
+      fillProfileForm(null);
+      applyBackgroundSettings(getProfileSettingsFromUser(null));
+    }
+  });
+}
+
+
+function getMergedSetIds(){
+  return new Set(mergedSets.flatMap(m=>m.setIds));
+}
+
+function isSetInMergedGroup(setId){
+  return mergedSets.some(m=>m.setIds.includes(setId));
+}
+
+function isSetTracked(setId){
+  return mySets.has(setId) || isSetInMergedGroup(setId);
+}
+
+function updateGlobalStats(){
+  let to=0,tc=0;
+  const trackedIds=new Set([...mySets,...mergedSets.flatMap(m=>m.setIds)]);
+  trackedIds.forEach(sid=>{
+    const s=allSets.find(x=>x.id===sid);
+    if(s){tc+=s.total||0;to+=(ownedCards[sid]||[]).length;}
+  });
+  document.getElementById('hstat-sets').textContent=(mySets.size+mergedSets.length+savedDecks.length);
+  document.getElementById('hstat-owned').textContent=to;
+  document.getElementById('hstat-pct').textContent=tc>0?Math.round((to/tc)*100)+'%':'0%';
+}
+
+function showView(name,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab, .mobile-nav-btn').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  else {
+    const tab=document.getElementById('tab-'+name);
+    if(tab) tab.classList.add('active');
+  }
+  const mobileBtn=document.getElementById('mnav-'+name);
+  if(mobileBtn) mobileBtn.classList.add('active');
+  if(name==='dex' && !dexAllPokemon.length) initDex();
+  if(name==='market') initMarketChips();
+  if(name==='scan') renderScanHistory();
+  if(name==='profile') fillProfileForm(currentUser);
+  if(name==='binder') normalizeBinderLayoutForMobile();
+  if(name!=='scan') stopCamera();
+  document.body.setAttribute('data-mobile-view', name);
+  toggleMobileNav(false);
+}
+
+
+function formatGBP(value){
+  if(value===null||value===undefined||Number.isNaN(value)) return '—';
+  return new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:2}).format(value);
+}
+
+function getFxMultiplier(currency){
+  return fxRates[currency] || 1;
+}
+
+async function loadExchangeRates(){
+  try{
+    const res=await fetch('https://api.frankfurter.dev/v2/rates?base=EUR&quotes=GBP,USD');
+    const data=await res.json();
+    if(data?.rates?.GBP && data?.rates?.USD){
+      fxRates.EUR=data.rates.GBP;
+      fxRates.USD=data.rates.GBP / data.rates.USD;
+      fxRates.GBP=1;
+    }
+  }catch(e){}
+}
+
+function getStoredFinish(cardId){
+  return cardFinishes[cardId] || 'auto';
+}
+
+function getFinishLabel(key){
+  return {
+    auto:'Auto',
+    normal:'Normal',
+    holofoil:'Holofoil',
+    reverseHolofoil:'Reverse holo',
+    '1stEditionNormal':'1st Edition',
+    '1stEditionHolofoil':'1st Edition holo'
+  }[key] || key;
+}
+
+function getFinishOptions(card){
+  const options=[];
+  const seen=new Set();
+  const add=(key)=>{
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    options.push(key);
+  };
+  add('auto');
+  const tcg=card.tcgplayer?.prices || {};
+  ['normal','holofoil','reverseHolofoil','1stEditionNormal','1stEditionHolofoil'].forEach(k=>{
+    if(tcg[k]) add(k);
+  });
+  const cm=card.cardmarket?.prices || {};
+  if(cm.trendPrice || cm.averageSellPrice || cm.avg7 || cm.lowPriceExPlus || cm.lowPrice) add('normal');
+  if(cm.reverseHoloTrend || cm.reverseHoloSell || cm.reverseHoloAvg7 || cm.reverseHoloLow) add('reverseHolofoil');
+  return options;
+}
+
+function getDefaultFinishKey(card){
+  const opts=getFinishOptions(card).filter(x=>x!=='auto');
+  if(!opts.length) return 'normal';
+  const priority=['normal','holofoil','reverseHolofoil','1stEditionNormal','1stEditionHolofoil'];
+  return priority.find(p=>opts.includes(p)) || opts[0];
+}
+
+function getCardPriceData(card, requestedFinish){
+  const finishKey = requestedFinish && requestedFinish !== 'auto' ? requestedFinish : getDefaultFinishKey(card);
+  const tcg = card.tcgplayer?.prices || {};
+  const cm = card.cardmarket?.prices || {};
+
+  if(tcg[finishKey]){
+    const p=tcg[finishKey];
+    const amount=p.market ?? p.mid ?? p.low ?? p.high ?? p.directLow;
+    if(amount!==undefined && amount!==null){
+      return {
+        finishKey,
+        finishLabel:getFinishLabel(finishKey),
+        amountOriginal:Number(amount),
+        amountGBP:Number(amount) * getFxMultiplier('USD'),
+        currency:'USD',
+        source:'TCGplayer',
+        updatedAt:card.tcgplayer?.updatedAt || null
+      };
+    }
+  }
+
+  if(finishKey==='normal'){
+    const amount = cm.trendPrice ?? cm.averageSellPrice ?? cm.avg7 ?? cm.lowPriceExPlus ?? cm.lowPrice ?? cm.avg30;
+    if(amount!==undefined && amount!==null){
+      return {
+        finishKey,
+        finishLabel:getFinishLabel(finishKey),
+        amountOriginal:Number(amount),
+        amountGBP:Number(amount) * getFxMultiplier('EUR'),
+        currency:'EUR',
+        source:'Cardmarket',
+        updatedAt:card.cardmarket?.updatedAt || null
+      };
+    }
+  }
+
+  if(finishKey==='reverseHolofoil'){
+    const amount = cm.reverseHoloTrend ?? cm.reverseHoloSell ?? cm.reverseHoloAvg7 ?? cm.reverseHoloLow ?? cm.reverseHoloAvg30;
+    if(amount!==undefined && amount!==null){
+      return {
+        finishKey,
+        finishLabel:getFinishLabel(finishKey),
+        amountOriginal:Number(amount),
+        amountGBP:Number(amount) * getFxMultiplier('EUR'),
+        currency:'EUR',
+        source:'Cardmarket',
+        updatedAt:card.cardmarket?.updatedAt || null
+      };
+    }
+  }
+
+  if(requestedFinish && requestedFinish !== 'auto'){
+    return getCardPriceData(card, 'auto');
+  }
+
+  return null;
+}
+
+
+function updateBinderValueSummary(){}
+
+function findCardById(cardId,setId){
+  return currentSetCards.find(card => card.id === cardId && (setId ? (card._setId||currentSetId) === setId : true)) || null;
+}
+
+function openCardModal(cardId,setId){
+  const card = findCardById(cardId,setId);
+  if(!card) return;
+  activeCard = card;
+  const priceData = getCardPriceData(card, getStoredFinish(card.id));
+  const owned = isOwned(card);
+  document.getElementById('cardModalBackdrop').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('cardModalMedia').innerHTML = card.images?.large
+    ? `<img src="${card.images.large}" alt="${card.name}">`
+    : (card.images?.small ? `<img src="${card.images.small}" alt="${card.name}">` : `<div style="color:var(--muted)">No image</div>`);
+  document.getElementById('cardModalName').textContent = card.name;
+  document.getElementById('cardModalMeta').textContent = `${card.set?.name || allSets.find(s=>s.id===card._setId)?.name || ''} • #${card.number}${card.rarity ? ' • ' + card.rarity : ''}`;
+  document.getElementById('cardModalValue').textContent = priceData ? formatGBP(priceData.amountGBP) : '—';
+  document.getElementById('cardModalValueSub').textContent = priceData
+    ? `${priceData.source} ${priceData.updatedAt ? '• updated ' + priceData.updatedAt : ''}`
+    : 'No live market price found for this variant';
+  document.getElementById('cardModalFinish').textContent = priceData ? priceData.finishLabel : 'Auto';
+  document.getElementById('cardModalFinishSub').textContent = getStoredFinish(card.id)==='auto'
+    ? 'Most common available finish'
+    : 'Using your selected finish';
+  document.getElementById('cardModalOwned').textContent = owned ? 'Yes' : 'No';
+  document.getElementById('cardModalOwnedSub').textContent = owned ? 'Included in your binder' : 'Not marked in your binder';
+  const btn=document.getElementById('cardOwnedToggleBtn');
+  btn.textContent = owned ? 'Remove from binder' : 'Mark owned';
+  btn.classList.toggle('secondary', owned);
+  const favouriteBtn=document.getElementById('cardFavouriteToggleBtn');
+  if(favouriteBtn){
+    const fav=isHighlighted(card.id);
+    favouriteBtn.textContent = fav ? '★ Remove favourite' : '★ Add to favourites';
+    favouriteBtn.classList.toggle('active-favourite', fav);
+  }
+  const chaseBtn=document.getElementById('cardChaseToggleBtn');
+  if(chaseBtn){
+    const chase=isChaseCard(card.id);
+    chaseBtn.textContent = chase ? '🎯 Remove chase card' : '🎯 Add as chase card';
+    chaseBtn.classList.toggle('active-chase', chase);
+  }
+  document.getElementById('cardModalCopy').textContent = 'Choose a finish to price this card. Auto uses the most common available market price. Values are displayed in GBP.';
+  const tags = [
+    card.types?.[0],
+    card.supertype,
+    card.subtypes?.[0],
+    card.hp ? `${card.hp} HP` : null,
+    card.artist ? `Art: ${card.artist}` : null
+  ].filter(Boolean);
+  document.getElementById('cardModalTags').innerHTML = tags.map(tag=>`<span class="modal-tag">${tag}</span>`).join('');
+  const options = getFinishOptions(card);
+  document.getElementById('cardFinishSelect').innerHTML = options.map(key=>`<option value="${key}" ${getStoredFinish(card.id)===key?'selected':''}>${getFinishLabel(key)}</option>`).join('');
+}
+
+function closeCardModal(evt){
+  if(evt && evt.target && evt.target !== document.getElementById('cardModalBackdrop')) return;
+  document.getElementById('cardModalBackdrop').classList.remove('open');
+  document.body.style.overflow='';
+  activeCard = null;
+}
+
+function setActiveCardFinish(value){
+  if(!activeCard) return;
+  cardFinishes[activeCard.id] = value;
+  if(value === 'auto') delete cardFinishes[activeCard.id];
+  save();
+  openCardModal(activeCard.id, activeCard._setId || currentSetId);
+  renderBinderBook();
+  updateBinderValueSummary();
+}
+
+function toggleActiveCardOwned(){
+  if(!activeCard) return;
+  toggleCard(activeCard.id, activeCard._setId || currentSetId);
+  openCardModal(activeCard.id, activeCard._setId || currentSetId);
+}
+
+function toggleActiveCardHighlight(){
+  if(!activeCard) return;
+  toggleHighlight(activeCard.id, activeCard._setId || currentSetId);
+  openCardModal(activeCard.id, activeCard._setId || currentSetId);
+}
+
+function toggleActiveCardChase(){
+  if(!activeCard) return;
+  toggleChaseCard(activeCard.id, activeCard._setId || currentSetId);
+  openCardModal(activeCard.id, activeCard._setId || currentSetId);
+}
+
+
+// ── HUB ──
+function onSearch(){
+  searchQuery=document.getElementById('searchInput').value.toLowerCase().trim();
+  renderAllSets();
+}
+
+function toggleCollecting(setId,e){
+  if(e){e.stopPropagation();e.preventDefault();}
+  if(mySets.has(setId))mySets.delete(setId); else mySets.add(setId);
+  save();renderMySets();renderAllSets();updateGlobalStats();
+}
+
+function openBinder(setId,isMerge){
+  currentSetId=isMerge?'merge:'+setId:setId;
+  currentFilter='all';currentPage=0;currentSort='number';
+  document.getElementById('sortSelect').value='number';
+  document.querySelectorAll('.binder-filters .pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+  let name,meta;
+  if(isMerge){
+    const m=mergedSets.find(x=>x.id===setId);
+    name=m.name;
+    meta=m.detailName || m.setIds.map(id=>allSets.find(s=>s.id===id)?.name||id).join(' + ');
+  } else {
+    const s=allSets.find(x=>x.id===setId);
+    name=s?.name||setId;
+    meta=(s?.series||'')+' · '+(s?.releaseDate||'');
+  }
+  document.getElementById('binderSetName').textContent=name;
+  document.getElementById('binderSetMeta').textContent=meta;
+  const bt=document.getElementById('tab-binder');
+  bt.style.display='';
+  bt.textContent=name.length>22?name.slice(0,20)+'…':name;
+  showView('binder',bt);
+  loadBinderCards();
+  renderChaseCards();
+  renderHighlights();
+}
+
+function openCustomSet(id){
+  currentSetId='custom:'+id;
+  currentFilter='all';currentPage=0;currentSort='number';
+  document.getElementById('sortSelect').value='number';
+  document.querySelectorAll('.binder-filters .pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+  const d=savedDecks.find(x=>x.id===id);
+  const name=d?.name||'Custom Set';
+  document.getElementById('binderSetName').textContent=name;
+  document.getElementById('binderSetMeta').textContent='Custom set · '+((d?.cards?.length)||0)+' cards';
+  const bt=document.getElementById('tab-binder');
+  bt.style.display='';
+  bt.textContent=name.length>22?name.slice(0,20)+'…':name;
+  showView('binder',bt);
+  loadBinderCards();
+  renderChaseCards();
+  renderHighlights();
+}
+
+function closeBinderView(){
+  document.getElementById('tab-binder').style.display='none';
+  showView('hub',document.getElementById('tab-hub'));
+  document.getElementById('binderChaseSection').style.display='none';
+  document.getElementById('binderHighlightsSection').style.display='none';
+  renderMySets();updateGlobalStats();
+}
+
+function renderMySets(){
+  const grid=document.getElementById('mySetsGrid');
+  const rows=[];
+  const mergedIds=getMergedSetIds();
+  allSets.filter(s=>mySets.has(s.id) && !mergedIds.has(s.id)).forEach(s=>{
+    const owned=(ownedCards[s.id]||[]).length,total=s.total||1;
+    const pct=Math.round((owned/total)*100);
+    const logo=s.images?.logo||'';
+    rows.push(`<div class="my-set-card" onclick="openBinder('${s.id}',false)">
+      <button class="remove-btn" onclick="toggleCollecting('${s.id}',event)">×</button>
+      ${logo?`<img class="my-set-logo" src="${logo}" alt="" onerror="this.style.display='none'">`:``}
+      <div class="my-set-name">${s.name}</div>
+      <div class="my-set-series">${s.series}</div>
+      <div class="set-prog-bar"><div class="set-prog-fill" style="width:${pct}%"></div></div>
+      <div class="set-prog-label"><span>${owned}/${total}</span><span>${pct}%</span></div>
+    </div>`);
+  });
+  mergedSets.forEach(m=>{
+    let to=0,tc=0;
+    m.setIds.forEach(sid=>{const s=allSets.find(x=>x.id===sid);if(s){tc+=s.total||0;to+=(ownedCards[sid]||[]).length;}});
+    const pct=tc>0?Math.round((to/tc)*100):0;
+    const logo=allSets.find(x=>x.id===m.setIds[0])?.images?.logo||'';
+    rows.push(`<div class="my-set-card merged-card" onclick="openBinder('${m.id}',true)">
+      <button class="remove-btn" onclick="removeMerge('${m.id}',event)">×</button>
+      ${logo?`<img class="my-set-logo" src="${logo}" alt="" onerror="this.style.display='none'">`:``}
+      <div class="merge-badge">MERGED · ${m.setIds.length} SETS</div>
+      <div class="my-set-name">${m.name}</div>
+      <div class="my-set-series">${m.detailName||m.setIds.length + ' sets combined'}</div>
+      <div class="set-prog-bar"><div class="set-prog-fill" style="width:${pct}%"></div></div>
+      <div class="set-prog-label"><span>${to}/${tc}</span><span>${pct}%</span></div>
+    </div>`);
+  });
+  savedDecks.forEach(d=>{
+    const total=d.cards?.length||0;
+    const owned=(d.cards||[]).filter(c=>isOwned(c)).length;
+    const pct=total?Math.round((owned/total)*100):0;
+    const logo=d.cards?.[0]?.images?.small||'';
+    rows.push(`<div class="my-set-card merged-card" onclick="openCustomSet('${d.id}')">
+      <button class="remove-btn" onclick="deleteDeck('${d.id}',event)">×</button>
+      ${logo?`<img class="my-set-logo" src="${logo}" alt="" onerror="this.style.display='none'">`:``}
+      <div class="merge-badge">CUSTOM SET · ${total} CARDS</div>
+      <div class="my-set-name">${d.name}</div>
+      <div class="my-set-series">Cards from multiple sets</div>
+      <div class="set-prog-bar"><div class="set-prog-fill" style="width:${pct}%"></div></div>
+      <div class="set-prog-label"><span>${owned}/${total}</span><span>${pct}%</span></div>
+    </div>`);
+  });
+  grid.innerHTML=rows.length?rows.join(''):`<div class="empty-my-sets">Browse sets below and click any to start tracking it, or build a custom set in the Custom Sets tab</div>`;
+}
+
+function removeMerge(id,e){
+  if(e){e.stopPropagation();e.preventDefault();}
+  const merge=mergedSets.find(m=>m.id===id);
+  if(merge) merge.setIds.forEach(sid=>mySets.add(sid));
+  mergedSets=mergedSets.filter(m=>m.id!==id);
+  save();renderMySets();renderAllSets();updateGlobalStats();
+}
+
+function toggleMergeMode(seriesKey){
+  if(mergeSelections[seriesKey]!==undefined) delete mergeSelections[seriesKey];
+  else mergeSelections[seriesKey]=new Set();
+  renderAllSets();
+}
+
+function toggleMergeSelect(setId,seriesKey){
+  if(!mergeSelections[seriesKey])mergeSelections[seriesKey]=new Set();
+  const sel=mergeSelections[seriesKey];
+  if(sel.has(setId))sel.delete(setId); else sel.add(setId);
+  renderAllSets();
+}
+
+function confirmMerge(seriesKey){
+  const sel=mergeSelections[seriesKey];
+  if(!sel||sel.size<2){alert('Select at least 2 sets to merge.');return;}
+  const setIds=[...sel];
+  const defaultName='Merged Sets';
+  const detailName=setIds.map(id=>allSets.find(s=>s.id===id)?.name||id).join(' + ');
+  const name=prompt('Name for this merged collection:',defaultName);
+  if(!name)return;
+  mergedSets.push({id:'merge_'+Date.now(),name,setIds,detailName});
+  setIds.forEach(sid=>mySets.delete(sid));
+  delete mergeSelections[seriesKey];
+  save();renderMySets();renderAllSets();updateGlobalStats();
+}
+
+function renderAllSets(){
+  const container=document.getElementById('allSetsContainer');
+  const seriesOrder=['Scarlet & Violet','Sword & Shield','Sun & Moon','XY','Black & White','HeartGold & SoulSilver','Platinum','Diamond & Pearl','EX','e-Card','Neo','Base'];
+  let filtered=allSets;
+  if(searchQuery)filtered=allSets.filter(s=>s.name.toLowerCase().includes(searchQuery)||(s.series||'').toLowerCase().includes(searchQuery));
+  document.getElementById('searchCount').textContent=searchQuery?filtered.length+' sets':'';
+  if(filtered.length===0){container.innerHTML=`<div class="no-results">No sets match "${searchQuery}"</div>`;return;}
+  const sm={};
+  filtered.forEach(s=>{if(!sm[s.series])sm[s.series]=[];sm[s.series].push(s);});
+  const sorted=Object.keys(sm).sort((a,b)=>{
+    const ai=seriesOrder.indexOf(a),bi=seriesOrder.indexOf(b);
+    if(ai===-1&&bi===-1)return a.localeCompare(b);
+    if(ai===-1)return 1;if(bi===-1)return -1;return ai-bi;
+  });
+  container.innerHTML=sorted.map(series=>{
+    const sets=sm[series];
+    const sk=series.replace(/[^a-z0-9]/gi,'_');
+    const sel=mergeSelections[sk]||new Set();
+    const mergeMode=mergeSelections[sk]!==undefined;
+    return`<div class="series-block">
+      <div class="series-title">
+        ${series}
+        ${sets.length>1?`<button class="merge-series-btn ${mergeMode?'armed':''}" onclick="toggleMergeMode('${sk}')">
+          ${mergeMode?'Cancel merge':'Merge sets'}
+        </button>`:''}
+        ${mergeMode&&sel.size>=2?`<button class="merge-series-btn armed" style="background:rgba(93,173,226,0.3)" onclick="confirmMerge('${sk}')">✓ Confirm (${sel.size} sets)</button>`:''}
+      </div>
+      <div class="all-sets-grid">
+        ${sets.map(s=>{
+          const collecting=isSetTracked(s.id);
+          const selForMerge=sel.has(s.id);
+          const logo=s.images?.logo||'';
+          return`<div class="all-set-card ${collecting?'collecting':''} ${selForMerge?'in-merge':''}"
+            onclick="${mergeMode?`toggleMergeSelect('${s.id}','${sk}')`:`toggleCollecting('${s.id}')`}">
+            ${collecting&&!mergeMode?`<div class="collecting-badge">✓</div>`:''}
+            ${selForMerge?`<div class="merge-sel-badge">✓</div>`:''}
+            ${logo?`<img class="all-set-logo" src="${logo}" alt="" onerror="this.style.display='none'">`:``}
+            <div class="all-set-name">${s.name}</div>
+            <div class="all-set-count">${s.total||'?'} cards</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── BINDER ──
+async function loadBinderCards(){
+  const wrap=document.getElementById('binderBookWrap');
+  wrap.innerHTML='<div class="binder-loading"><div class="spin-ring"></div> Loading cards…</div>';
+  try{
+    let cards=[];
+    if(currentSetId.startsWith('custom:')){
+      const d=savedDecks.find(x=>x.id===currentSetId.replace('custom:',''));
+      cards=(d?.cards||[]).map(c=>({...c,_setId:c.set?.id||c._setId||''}));
+    } else if(currentSetId.startsWith('merge:')){
+      const m=mergedSets.find(x=>x.id===currentSetId.replace('merge:',''));
+      const fetches=m.setIds.map(sid=>
+        fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${sid}&orderBy=number&pageSize=500`)
+          .then(r=>r.json()).then(d=>(d.data||[]).map(c=>({...c,_setId:sid})))
+      );
+      cards=(await Promise.all(fetches)).flat();
+    } else {
+      const r=await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${currentSetId}&orderBy=number&pageSize=500`);
+      cards=(await r.json()).data?.map(c=>({...c,_setId:currentSetId}))||[];
+    }
+    currentSetCards=cards;
+    renderBinderBook();updateBinderProgress();renderChaseCards();renderHighlights();
+  }catch(e){
+    wrap.innerHTML='<div class="binder-empty">Could not load cards — check your connection.</div>';
+  }
+}
+
+function getRarity(card){
+  const r=(card.rarity||'').toLowerCase();
+  if(r.includes('holo rare')||r==='holo')return 'holo';
+  if(r.includes('rare'))return 'rare';
+  return 'common';
+}
+
+function isOwned(card){
+  const sid=card?.set?.id || card?._setId || (String(currentSetId).startsWith('custom:') ? '' : currentSetId);
+  return !!sid && (ownedCards[sid]||[]).includes(card.id);
+}
+
+function setFilter(f,btn){
+  currentFilter=f;currentPage=0;
+  document.querySelectorAll('.binder-filters .pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBinderBook();
+}
+
+function onSortChange(){
+  currentSort=document.getElementById('sortSelect').value;
+  currentPage=0;renderBinderBook();
+}
+
+function getDexNum(card){
+  if(card.nationalPokedexNumbers?.length>0)return card.nationalPokedexNumbers[0];
+  return parseInt(card.number)||9999;
+}
+
+function sortCards(cards){
+  if(currentSort==='number'){
+    return[...cards].sort((a,b)=>{
+      if(a._setId!==b._setId)return(a._setId||'').localeCompare(b._setId||'');
+      return(parseInt(a.number)||0)-(parseInt(b.number)||0);
+    });
+  }
+  if(currentSort==='alpha')return[...cards].sort((a,b)=>a.name.localeCompare(b.name));
+  if(currentSort==='evolution'){
+    return[...cards].sort((a,b)=>{
+      const na=getDexNum(a),nb=getDexNum(b);
+      if(na!==nb)return na-nb;
+      return(parseInt(a.number)||0)-(parseInt(b.number)||0);
+    });
+  }
+  return cards;
+}
+
+function getFilteredSortedCards(){
+  let cards=currentSetCards;
+  if(currentFilter==='owned')cards=cards.filter(c=>isOwned(c));
+  else if(currentFilter==='missing')cards=cards.filter(c=>!isOwned(c));
+  else if(currentFilter==='holo')cards=cards.filter(c=>getRarity(c)==='holo');
+  else if(currentFilter==='rare')cards=cards.filter(c=>['holo','rare'].includes(getRarity(c)));
+  return sortCards(cards);
+}
+
+function toggleCard(cardId,setId){
+  const sid=setId||currentSetId;
+  if(!ownedCards[sid])ownedCards[sid]=[];
+  const arr=ownedCards[sid];
+  const idx=arr.indexOf(cardId);
+  if(idx===-1)arr.push(cardId);else arr.splice(idx,1);
+  save();updateBinderProgress();renderMySets();updateGlobalStats();renderBinderBook();
+}
+
+function getPerPage(){
+  return {
+    '1x1-scroll': Infinity,
+    '2x2': 4,
+    '3x3': 9,
+    '4x4': 16,
+    '5x5': 25
+  }[binderLayout] || 9;
+}
+
+function setLayout(layout, btn){
+  if(isMobileMode() && !['1x1-scroll','2x2'].includes(layout)) return;
+  binderLayout = layout;
+  localStorage.setItem('pb_layout', layout);
+  document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentPage = 0;
+  renderBinderBook();
+}
+
+function syncLayoutButtons(){
+  document.querySelectorAll('.layout-btn').forEach(b => b.classList.remove('active'));
+  const active = document.getElementById('lbtn-'+binderLayout);
+  if(active) active.classList.add('active');
+}
+
+let cardPressTimer=null;
+let cardPressTriggered=false;
+
+function startCardPress(cardId, setId){
+  clearTimeout(cardPressTimer);
+  cardPressTriggered=false;
+  cardPressTimer=setTimeout(()=>{
+    cardPressTriggered=true;
+    openCardModal(cardId,setId);
+  }, 450);
+}
+
+function cancelCardPress(){
+  clearTimeout(cardPressTimer);
+}
+
+function handleCardTap(cardId, setId){
+  if(cardPressTriggered){
+    cardPressTriggered=false;
+    return;
+  }
+  toggleCard(cardId,setId);
+}
+
+function makeCardSlot(card, isMerged){
+  if(!card) return `<div class="card-slot ghost"></div>`;
+  const owned = isOwned(card);
+  const img = card.images?.small || '';
+  const sid = card._setId || currentSetId;
+  const setName = isMerged ? (allSets.find(s => s.id===sid)?.name || sid) : '';
+  return `<div class="card-slot ${owned?'owned':''} ${isHighlighted(card.id)?'highlighted':''}" data-id="${card.id}" onclick="handleCardTap('${card.id}','${sid}')" onmousedown="startCardPress('${card.id}','${sid}')" onmouseup="cancelCardPress()" onmouseleave="cancelCardPress()" ontouchstart="startCardPress('${card.id}','${sid}')" ontouchend="cancelCardPress()" ontouchcancel="cancelCardPress()" title="${card.name} #${card.number}">
+    <span class="card-num-label">#${card.number}</span>
+    ${isMerged?`<span class="card-set-label">${setName}</span>`:''}
+    ${img?`<img src="${img}" alt="${card.name}" loading="lazy">`:`<div class="placeholder-slot">${card.name}</div>`}
+    <button class="star-btn" onclick="event.stopPropagation();toggleHighlight('${card.id}','${sid}')" title="${isHighlighted(card.id)?'Remove from highlights':'Highlight card'}">★</button>
+    <div class="card-tick"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+  </div>`;
+}
+
+function renderBinderBook(){
+  normalizeBinderLayoutForMobile();
+  syncLayoutButtons();
+  const wrap = document.getElementById('binderBookWrap');
+  const cards = getFilteredSortedCards();
+  if(cards.length === 0){ wrap.innerHTML='<div class="binder-empty">No cards match this filter.</div>'; return; }
+  const isMerged = currentSetId.startsWith('merge:');
+
+  // SCROLL LAYOUT — single continuous grid, no pages
+  if(binderLayout === '1x1-scroll'){
+    wrap.innerHTML = `<div class="binder-scroll-grid">${cards.map(c => makeCardSlot(c, isMerged)).join('')}</div>`;
+    return;
+  }
+
+  // PAGED LAYOUTS
+  const perPage = getPerPage();
+  const cols = parseInt(binderLayout); // 2, 3, 4 or 5
+  const totalPages = Math.ceil(cards.length / perPage);
+  if(currentPage >= totalPages) currentPage = totalPages - 1;
+  const pageCards = cards.slice(currentPage * perPage, (currentPage+1) * perPage);
+  while(pageCards.length < perPage) pageCards.push(null);
+
+  const slots = pageCards.map(c => makeCardSlot(c, isMerged)).join('');
+
+  const dotsCount = Math.min(totalPages, 12);
+  const dots = Array.from({length: dotsCount}, (_, i) => {
+    const rp = totalPages <= 12 ? i : Math.round(i*(totalPages-1)/(dotsCount-1));
+    const active = totalPages <= 12 ? i===currentPage : i===Math.round(currentPage*(dotsCount-1)/(totalPages-1));
+    return `<div class="page-dot ${active?'active':''}" onclick="goPage(${rp})"></div>`;
+  }).join('');
+
+  // Ring count scales with grid size
+  const ringCount = cols <= 2 ? 2 : cols <= 3 ? 3 : cols <= 4 ? 4 : 5;
+  const rings = Array.from({length: ringCount}, () => `<div class="spine-ring"></div>`).join('');
+
+  wrap.innerHTML = `
+    <div class="binder-page">
+      <div class="page-inner layout-${binderLayout}">${slots}</div>
+      <div class="binder-spine-row">
+        <div class="spine-rings">${rings}</div>
+        <span class="page-label">PAGE ${currentPage+1} OF ${totalPages}</span>
+      </div>
+    </div>
+    <div class="pagination">
+      <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===0?'disabled':''}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Prev
+      </button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div class="page-info">PAGE ${currentPage+1} / ${totalPages}</div>
+        <div class="page-dots">${dots}</div>
+      </div>
+      <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages-1?'disabled':''}>
+        Next<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>`;
+  updateBinderValueSummary();
+}
+
+function goPage(n){
+  const perPage = getPerPage();
+  const total = perPage === Infinity ? 1 : Math.ceil(getFilteredSortedCards().length / perPage);
+  if(n<0||n>=total)return;
+  currentPage=n;renderBinderBook();window.scrollTo(0,0);
+}
+
+function updateBinderProgress(){
+  let to=0,tc=currentSetCards.length;
+  if(currentSetId.startsWith('merge:')){
+    const m=mergedSets.find(x=>x.id===currentSetId.replace('merge:',''));
+    to=m?m.setIds.reduce((s,sid)=>s+(ownedCards[sid]||[]).length,0):0;
+  } else {
+    to=(ownedCards[currentSetId]||[]).length;
+  }
+  const pct=tc>0?Math.round((to/tc)*100):0;
+  document.getElementById('binderCount').textContent=to+' / '+tc;
+  document.getElementById('binderPct').textContent=pct+'%';
+  document.getElementById('binderProgFill').style.width=pct+'%';
+}
+
+
+window.addEventListener('resize', ()=>{
+  normalizeBinderLayoutForMobile();
+  if(document.getElementById('view-binder')?.classList.contains('active')) renderBinderBook();
+  if(!isMobileMode()) toggleMobileNav(false);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && document.getElementById('cardModalBackdrop').classList.contains('open')){
+    closeCardModal();
+    return;
+  }
+  if(e.key==='Escape' && document.getElementById('dexPokeModal').classList.contains('open')){
+    closeDexModal();
+    return;
+  }
+  if(!document.getElementById('view-binder').classList.contains('active'))return;
+  if(binderLayout==='1x1-scroll')return;
+  if(e.key==='ArrowRight')goPage(currentPage+1);
+  if(e.key==='ArrowLeft')goPage(currentPage-1);
+});
+
+// ── DECK BUILDER ──
+function initDeckBuilder(){
+  document.getElementById('pokeSuggestions').innerHTML=
+    POPULAR.map(p=>`<button class="poke-chip" onclick="searchPokemon('${p}',this)">${p}</button>`).join('');
+  renderDeckPanel();renderSavedDecks();
+}
+
+function onDeckSearch(){
+  const val=document.getElementById('deckSearchInput').value.trim();
+  clearTimeout(deckDebounce);
+  if(!val){document.getElementById('deckCardsArea').innerHTML='<div style="padding:48px;text-align:center;color:var(--muted);font-size:13px;">Search for any Pokémon above, then click cards to add them into your custom set</div>';return;}
+  deckDebounce=setTimeout(()=>searchPokemon(val,null),420);
+}
+
+async function searchPokemon(name,chipEl){
+  document.querySelectorAll('.poke-chip').forEach(c=>c.classList.remove('active'));
+  if(chipEl)chipEl.classList.add('active');
+  document.getElementById('deckSearchInput').value=name;
+  const area=document.getElementById('deckCardsArea');
+  area.innerHTML='<div class="deck-loading"><div class="spin-ring"></div> Searching all sets…</div>';
+  document.getElementById('deckResultsInfo').textContent='';
+  try{
+    const res=await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(name)}"&pageSize=250&orderBy=set.releaseDate`);
+    deckSearchResults=(await res.json()).data||[];
+    const setCount=new Set(deckSearchResults.map(c=>c.set?.id)).size;
+    document.getElementById('deckResultsInfo').textContent=
+      deckSearchResults.length>0?`${deckSearchResults.length} cards found across ${setCount} sets`:'No cards found';
+    renderDeckSearchResults();
+  }catch(e){
+    area.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">Search failed — check your connection.</div>';
+  }
+}
+
+function renderDeckSearchResults(){
+  const area=document.getElementById('deckCardsArea');
+  if(!deckSearchResults.length){area.innerHTML='<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">No results found.</div>';return;}
+  const bySet={};
+  deckSearchResults.forEach(c=>{const sid=c.set?.id||'?';if(!bySet[sid])bySet[sid]=[];bySet[sid].push(c);});
+  const inDeckIds=new Set(currentDeck.map(c=>c.id));
+  area.innerHTML=Object.entries(bySet).map(([sid,cards])=>{
+    const setName=cards[0]?.set?.name||sid;
+    return`<div class="deck-set-group">
+      <div class="deck-set-group-title">${setName}</div>
+      <div class="deck-cards-grid">
+        ${cards.map(card=>{
+          const owned=Object.entries(ownedCards).some(([,arr])=>arr.includes(card.id));
+          const inDeck=inDeckIds.has(card.id);
+          const img=card.images?.small||'';
+          const cardData=btoa(unescape(encodeURIComponent(JSON.stringify({id:card.id,name:card.name,number:card.number,set:{id:card.set?.id,name:card.set?.name},images:{small:card.images?.small||''}}))));
+          return`<div class="deck-card-item ${owned?'owned-card':'not-owned'} ${inDeck?'in-deck':''}" title="${card.name} — ${setName}" onclick="toggleDeckCard('${cardData}')">
+            ${img?`<img src="${img}" alt="${card.name}" loading="lazy">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--muted);text-align:center;padding:6px;">${card.name}</div>`}
+            <div class="deck-card-num">#${card.number}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDeckCard(encoded){
+  const card=JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  const idx=currentDeck.findIndex(c=>c.id===card.id);
+  if(idx===-1){
+    currentDeck.push(card);
+  } else {
+    currentDeck.splice(idx,1);
+  }
+  renderDeckPanel();renderDeckSearchResults();
+}
+
+function newCustomDeck(){
+  currentDeck=[];
+  document.getElementById('deckNameInput').value='My Custom Set';
+  renderDeckPanel();
+  renderDeckSearchResults();
+}
+
+function isDeckCardOwned(card){
+  const sid=card?.set?.id || card?._setId;
+  return !!(sid && (ownedCards[sid]||[]).includes(card.id));
+}
+
+function toggleDeckOwnedAt(idx,e){
+  if(e) e.stopPropagation();
+  const card=currentDeck[idx];
+  if(!card) return;
+  const sid=card?.set?.id || card?._setId;
+  if(!sid) return;
+  if(!isSetTracked(sid)) mySets.add(sid);
+  toggleCard(card.id,sid);
+  renderDeckPanel();
+  renderDeckSearchResults();
+}
+
+function renderDeckPanel(){
+  const segs=Array.from({length:Math.max(currentDeck.length,12)},(_,i)=>`<div class="deck-count-seg ${i<currentDeck.length?'filled':''}"></div>`).join('');
+  document.getElementById('deckCountBar').innerHTML=segs;
+  document.getElementById('deckCardCount').textContent=currentDeck.length+' cards';
+  const list=document.getElementById('deckList');
+  if(!currentDeck.length){list.innerHTML='<div class="deck-empty">No cards in this custom set yet</div>';return;}
+  list.innerHTML=currentDeck.map((card,i)=>`<div class="deck-item">
+      ${card.images?.small?`<img class="deck-item-thumb" src="${card.images.small}" alt="">`:`<div style="width:26px;height:36px;background:var(--surface3);border-radius:3px;flex-shrink:0;"></div>`}
+      <div class="deck-item-info">
+        <div class="deck-item-name">${card.name}</div>
+        <div class="deck-item-set">${card.set?.name||''} #${card.number}</div>
+      </div>
+      <button class="deck-item-remove" onclick="removeDeckCard(${i},event)">×</button>
+    </div>`).join('');
+}
+
+function removeDeckCard(idx,e){if(e)e.stopPropagation();currentDeck.splice(idx,1);renderDeckPanel();renderDeckSearchResults();}
+function clearDeck(){if(currentDeck.length&&!confirm('Clear this deck?'))return;currentDeck=[];renderDeckPanel();renderDeckSearchResults();}
+
+function saveDeck(){
+  const name=document.getElementById('deckNameInput').value.trim()||'My Custom Set';
+  if(!currentDeck.length){alert('Add some cards first.');return;}
+  const payloadCards=currentDeck.map(c=>({id:c.id,name:c.name,number:c.number,set:c.set,images:c.images,rarity:c.rarity||'',types:c.types||[],supertype:c.supertype||'',subtypes:c.subtypes||[],artist:c.artist||'',nationalPokedexNumbers:c.nationalPokedexNumbers||[],images:c.images}));
+  const existing=savedDecks.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
+  const record={id:existing!==-1?savedDecks[existing].id:'deck_'+Date.now(),name,cards:payloadCards};
+  if(existing!==-1) savedDecks[existing]=record; else savedDecks.push(record);
+  save();renderSavedDecks();renderMySets();updateGlobalStats();renderMySets();updateGlobalStats();alert(`"${name}" saved!`);
+}
+
+function loadDeck(id){
+  const d=savedDecks.find(x=>x.id===id);
+  if(!d)return;
+  currentDeck=[...d.cards];
+  document.getElementById('deckNameInput').value=d.name;
+  renderDeckPanel();renderDeckSearchResults();
+}
+
+function deleteDeck(id,e){
+  e.stopPropagation();
+  savedDecks=savedDecks.filter(x=>x.id!==id);
+  save();renderSavedDecks();renderMySets();updateGlobalStats();
+}
+
+function renderSavedDecks(){
+  const el=document.getElementById('savedDecksWrap');
+  if(!savedDecks.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Saved Custom Sets</div>`+
+    savedDecks.map(d=>`<div class="saved-deck-row">
+      <span class="saved-deck-name" onclick="loadDeck('${d.id}')">${d.name}</span>
+      <span class="saved-deck-count">${d.cards.length}c</span>
+      <button class="saved-deck-del" onclick="deleteDeck('${d.id}',event)">×</button>
+    </div>`).join('');
+}
+
+function exportDeck(){
+  if(!currentDeck.length){alert('No cards in deck.');return;}
+  const name=document.getElementById('deckNameInput').value.trim()||'My Custom Set';
+  const counts={};
+  currentDeck.forEach(c=>{const k=c.name+' ('+c.set?.name+' #'+c.number+')';counts[k]=(counts[k]||0)+1;});
+  const lines=[`# ${name}`,`# ${currentDeck.length} cards`,``,...Object.entries(counts).map(([k,n])=>`${n}x ${k}`)];
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/plain'}));
+  a.download=name.replace(/\s+/g,'_')+'.txt';a.click();
+}
+
+// ── FAVOURITES / CHASE CARDS ──
+function buildPinnedCard(cardId,setId){
+  const card=findCardById(cardId,setId);
+  const setName=allSets.find(s=>s.id===setId)?.name || setId;
+  return {
+    id:cardId,
+    name:card?.name || 'Card',
+    setId,
+    setName,
+    img:card?.images?.large || card?.images?.small || '',
+    number:card?.number || '',
+    rarity:card?.rarity || ''
+  };
+}
+
+function isHighlighted(cardId){return highlightedCards.some(h=>h.id===cardId);}
+function isChaseCard(cardId){return chaseCards.some(h=>h.id===cardId);}
+
+function toggleHighlight(cardId,setId){
+  const idx=highlightedCards.findIndex(h=>h.id===cardId);
+  if(idx!==-1){
+    highlightedCards.splice(idx,1);
+  } else {
+    highlightedCards.push(buildPinnedCard(cardId,setId));
+  }
+  save();renderHighlights();renderBinderBook();
+}
+
+function toggleChaseCard(cardId,setId){
+  const idx=chaseCards.findIndex(h=>h.id===cardId);
+  if(idx!==-1){
+    chaseCards.splice(idx,1);
+  } else {
+    chaseCards.push(buildPinnedCard(cardId,setId));
+  }
+  save();renderChaseCards();renderBinderBook();
+}
+
+function removeHighlight(cardId){
+  highlightedCards=highlightedCards.filter(h=>h.id!==cardId);
+  save();renderHighlights();renderBinderBook();
+}
+
+function removeChaseCard(cardId){
+  chaseCards=chaseCards.filter(h=>h.id!==cardId);
+  save();renderChaseCards();renderBinderBook();
+}
+
+function getPinnedCardsForCurrentBinder(cards){
+  if(!currentSetId) return [];
+  if(String(currentSetId).startsWith('custom:')){
+    const allowed=new Set((currentSetCards||[]).map(c=>c.id));
+    return cards.filter(c=>allowed.has(c.id));
+  }
+  if(String(currentSetId).startsWith('merge:')){
+    const mergeId=String(currentSetId).slice(6);
+    const group=mergedSets.find(m=>m.id===mergeId);
+    const allowed=new Set(group?.setIds || []);
+    return cards.filter(c=>allowed.has(c.setId));
+  }
+  return cards.filter(c=>c.setId===currentSetId);
+}
+
+function renderPinnedStrip(sectionId, stripId, cards, removeFnName){
+  const sec=document.getElementById(sectionId);
+  const strip=document.getElementById(stripId);
+  if(!sec || !strip) return;
+  if(!cards.length){sec.style.display='none';strip.innerHTML='';return;}
+  sec.style.display='';
+  strip.innerHTML=cards.map(h=>`
+    <div class="toploader" onclick="openPinnedCard('${h.id}','${h.setId}')">
+      <button class="toploader-unstar" onclick="event.stopPropagation();${removeFnName}('${h.id}')">✕</button>
+      <div class="toploader-sleeve">
+        <div class="toploader-edge"></div>
+        <div class="toploader-shine"></div>
+        ${h.img?`<img class="toploader-card-img" src="${h.img}" alt="${h.name}" loading="lazy">`:`<div style="aspect-ratio:2/2.8;background:var(--surface3);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);text-align:center;padding:8px;">${h.name}</div>`}
+      </div>
+      <div class="toploader-name">${h.name}</div>
+      <div class="toploader-set">${h.setName}${h.number ? ' · #' + h.number : ''}</div>
+    </div>`).join('');
+}
+
+function renderChaseCards(){
+  const binderCards=getPinnedCardsForCurrentBinder(chaseCards);
+  renderPinnedStrip('binderChaseSection','binderChaseStrip',binderCards,'removeChaseCard');
+  const hubSec=document.getElementById('chaseSection');
+  const hubStrip=document.getElementById('chaseStrip');
+  if(hubSec) hubSec.style.display='none';
+  if(hubStrip) hubStrip.innerHTML='';
+}
+
+function renderHighlights(){
+  const binderCards=getPinnedCardsForCurrentBinder(highlightedCards);
+  renderPinnedStrip('binderHighlightsSection','binderHighlightsStrip',binderCards,'removeHighlight');
+  const hubSec=document.getElementById('highlightsSection');
+  const hubStrip=document.getElementById('highlightsStrip');
+  if(hubSec) hubSec.style.display='none';
+  if(hubStrip) hubStrip.innerHTML='';
+}
+
+async function openPinnedCard(cardId,setId){
+  if(currentSetId===setId && currentSetCards.length){
+    openCardModal(cardId,setId);return;
+  }
+  openBinder(setId,false);
+  const wait=()=>new Promise(r=>setTimeout(r,600));
+  await wait();
+  openCardModal(cardId,setId);
+}
+
+// ── POKÉDEX ──
+const TYPE_COLORS={
+  Fire:'#EE8130',Water:'#6390F0',Grass:'#7AC74C',Electric:'#F7D02C',
+  Psychic:'#F95587',Ice:'#96D9D6',Dragon:'#6F35FC',Dark:'#705746',
+  Fairy:'#D685AD',Normal:'#A8A77A',Fighting:'#C22E28',Flying:'#A98FF3',
+  Poison:'#A33EA1',Ground:'#E2BF65',Rock:'#B6A136',Bug:'#A6B91A',
+  Ghost:'#735797',Steel:'#B7B7CE',Colorless:'#9E9E9E',Lightning:'#F7D02C',
+  Metal:'#B7B7CE',Darkness:'#705746',Fairy:'#D685AD'
+};
+const TYPE_SYMBOLS={
+  Fire:'🔥',Water:'💧',Grass:'🍃',Electric:'⚡',Psychic:'🔮',Ice:'❄️',Dragon:'🐉',
+  Dark:'🌑',Fairy:'✨',Normal:'⚪',Fighting:'🥊',Flying:'🕊️',Poison:'☠️',
+  Ground:'⛰️',Rock:'🪨',Bug:'🐛',Ghost:'👻',Steel:'⚙️'
+};
+
+let dexDebounceTimer=null;
+function onDexSearch(){
+  clearTimeout(dexDebounceTimer);
+  dexDebounceTimer=setTimeout(renderDexGrid,350);
+}
+
+function setDexType(type,el){
+  dexActiveType=type;
+  document.querySelectorAll('.dex-type-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderDexGrid();
+}
+
+async function initDex(){
+  const grid=document.getElementById('dexGrid');
+  grid.innerHTML='<div class="dex-loading"><div class="spin-ring"></div> Loading Pokédex…</div>';
+  try{
+    const r=await fetch('https://pokeapi.co/api/v2/pokemon?limit=151&offset=0');
+    const data=await r.json();
+    const detailResults = await Promise.allSettled(
+      data.results.map((p,i)=>fetch(p.url).then(r=>r.json()).then(detail=>({
+        name:p.name,
+        id:i+1,
+        url:p.url,
+        types:(detail.types||[]).sort((a,b)=>a.slot-b.slot).map(t=>t.type.name)
+      })))
+    );
+    dexAllPokemon=detailResults.map((res,i)=>{
+      if(res.status==='fulfilled') return res.value;
+      const p=data.results[i];
+      return {name:p.name,id:i+1,url:p.url,types:[]};
+    });
+    buildDexTypeFilters();
+    renderDexGrid();
+  }catch(e){
+    grid.innerHTML='<div class="dex-empty">Could not load Pokédex — check your connection.</div>';
+  }
+}
+
+function buildDexTypeFilters(){
+  const types=['all','Fire','Water','Grass','Electric','Psychic','Ice','Dragon','Dark','Fairy','Normal','Fighting','Flying','Poison','Ground','Rock','Bug','Ghost','Steel'];
+  const wrap=document.getElementById('dexTypeFilters');
+  wrap.innerHTML=types.map(t=>`<button class="dex-type-chip ${t==='all'?'active':''}" style="${t!=='all'&&TYPE_COLORS[t]?`border-color:${TYPE_COLORS[t]}40;color:${TYPE_COLORS[t]}`:''}" onclick="setDexType('${t}',this)">${t==='all'?'All Types':t}</button>`).join('');
+}
+
+async function renderDexGrid(){
+  const grid=document.getElementById('dexGrid');
+  const query=(document.getElementById('dexSearchInput')?.value||'').toLowerCase().trim();
+  let list=dexAllPokemon;
+  if(query) list=list.filter(p=>p.name.includes(query)||String(p.id).includes(query));
+  if(dexActiveType!=='all'){
+    list=list.filter(p=>(p.types||[]).some(t=>t.toLowerCase()===dexActiveType.toLowerCase()));
+  }
+  if(!list.length){
+    grid.innerHTML='<div class="dex-empty">No Pokémon match your search</div>';
+    return;
+  }
+  grid.innerHTML=`<div class="dex-grid">${list.map(p=>{
+    const owned=isPokeOwned(p.name);
+    const img=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
+    const primaryType=(p.types?.[0]||'normal');
+    const primaryLabel=primaryType.charAt(0).toUpperCase()+primaryType.slice(1);
+    const typeColor=TYPE_COLORS[primaryLabel] || '#888';
+    const typeSymbol=TYPE_SYMBOLS[primaryLabel] || '•';
+    return`<div class="dex-card ${owned?'owned-dex':''}" onclick="openDexPokemon(${p.id},'${p.name}')">
+      ${owned?'<div class="dex-owned-ring"></div>':''}
+      <div class="dex-card-num">#${String(p.id).padStart(3,'0')}</div>
+      <img class="dex-card-img" src="${img}" alt="${p.name}" loading="lazy" onerror="this.style.opacity=0.3">
+      <div class="dex-card-name">${p.name.charAt(0).toUpperCase()+p.name.slice(1)}</div>
+      <div class="dex-type-icon" title="${primaryLabel}" style="background:${typeColor};color:${primaryLabel==='Electric'||primaryLabel==='Ice'||primaryLabel==='Normal'?'#2b2000':'#fff'}">${typeSymbol}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function isPokeOwned(name){
+  // Check if any owned card matches this pokemon name
+  return Object.values(ownedCards).some(arr=>arr.length>0) &&
+    currentSetCards.some(c=>c.name.toLowerCase()===name.toLowerCase() && isOwned(c));
+}
+
+const STAT_COLORS={hp:'#FF5959',attack:'#F5AC78',defense:'#FAE078',
+  'special-attack':'#9DB7F5','special-defense':'#A7DB8D',speed:'#FA92B2'};
+const STAT_LABELS={hp:'HP',attack:'Attack',defense:'Defense',
+  'special-attack':'Sp. Atk','special-defense':'Sp. Def',speed:'Speed'};
+
+function getTypeColor(type){
+  return TYPE_COLORS[type.charAt(0).toUpperCase()+type.slice(1)] || '#888';
+}
+
+function statBarColor(val){
+  if(val<50) return '#e05555';
+  if(val<80) return '#f0a030';
+  if(val<110) return '#5dade2';
+  return '#2ecc71';
+}
+
+function getEvoMethod(detail){
+  if(!detail) return '';
+  if(detail.trigger?.name==='level-up'){
+    if(detail.min_level) return `Lv. ${detail.min_level}`;
+    if(detail.item) return capitalise(detail.item.name.replace(/-/g,' '));
+    if(detail.min_happiness) return 'Friendship';
+    if(detail.time_of_day) return capitalise(detail.time_of_day);
+    return 'Level up';
+  }
+  if(detail.trigger?.name==='use-item') return capitalise((detail.item?.name||'').replace(/-/g,' '));
+  if(detail.trigger?.name==='trade') return 'Trade';
+  return capitalise((detail.trigger?.name||'').replace(/-/g,' '));
+}
+
+function capitalise(s){return s?s.charAt(0).toUpperCase()+s.slice(1):'';}
+
+function buildEvoChain(chain){
+  const out=[];
+  function walk(node, method){
+    const id=parseInt(node.species.url.split('/').filter(Boolean).pop());
+    out.push({name:node.species.name, id, method: method||''});
+    if(node.evolves_to?.length){
+      // just follow first evolution path for simplicity
+      const next=node.evolves_to[0];
+      const detail=next.evolution_details?.[0];
+      walk(next, getEvoMethod(detail));
+    }
+  }
+  walk(chain,'');
+  return out;
+}
+
+async function openDexPokemon(id, name){
+  const modal=document.getElementById('dexPokeModal');
+  const panel=document.getElementById('dexPokePanel');
+  panel.innerHTML=`<div style="padding:60px;text-align:center;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:12px;"><div class="spin-ring"></div> Loading…</div>`;
+  modal.classList.add('open');
+  document.body.style.overflow='hidden';
+  try{
+    const [pokeRes, speciesRes] = await Promise.all([
+      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r=>r.json()),
+      fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`).then(r=>r.json())
+    ]);
+
+    // Evolution chain
+    let evoChain=[];
+    try{
+      const evoRes=await fetch(speciesRes.evolution_chain.url).then(r=>r.json());
+      evoChain=buildEvoChain(evoRes.chain);
+    }catch(e){}
+
+    const types=pokeRes.types.map(t=>t.type.name);
+    const abilities=pokeRes.abilities||[];
+    const stats=pokeRes.stats||[];
+    const heightM=(pokeRes.height/10).toFixed(1);
+    const weightKg=(pokeRes.weight/10).toFixed(1);
+    const artwork=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+
+    // Genus
+    const genusEntry=speciesRes.genera?.find(g=>g.language.name==='en');
+    const genus=genusEntry?.genus||'';
+
+    // Flavour text — latest English entry
+    const flavourEntries=speciesRes.flavor_text_entries?.filter(f=>f.language.name==='en')||[];
+    const flavour=flavourEntries.length
+      ? flavourEntries[flavourEntries.length-1].flavor_text.replace(/\f|\n/g,' ')
+      : 'No Pokédex entry available.';
+    const flavourGame=flavourEntries.length
+      ? capitalise(flavourEntries[flavourEntries.length-1].version.name.replace(/-/g,' '))
+      : '';
+
+    // Type pills HTML
+    const typePills=types.map(t=>{
+      const col=getTypeColor(t);
+      return`<span class="dex-type-pill" style="background:${col}22;color:${col};border:1px solid ${col}66">${capitalise(t)}</span>`;
+    }).join('');
+
+    // Stats HTML
+    const statsHtml=stats.map(s=>{
+      const key=s.stat.name;
+      const val=s.base_stat;
+      const pct=Math.min(100,Math.round((val/255)*100));
+      const col=statBarColor(val);
+      return`<div class="dex-stat-row">
+        <span class="dex-stat-name">${STAT_LABELS[key]||capitalise(key)}</span>
+        <span class="dex-stat-val">${val}</span>
+        <div class="dex-stat-bar-wrap"><div class="dex-stat-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      </div>`;
+    }).join('');
+
+    // Abilities HTML
+    const abilitiesHtml=abilities.map(a=>`
+      <div class="dex-ability-row">
+        <span class="dex-ability-name">${capitalise(a.ability.name.replace(/-/g,' '))}</span>
+        ${a.is_hidden?`<span class="dex-ability-hidden">Hidden</span>`:''}
+      </div>`).join('');
+
+    // Evolution chain HTML
+    let evoHtml='';
+    if(evoChain.length>1){
+      evoHtml=evoChain.map((mon,i)=>{
+        const img=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${mon.id}.png`;
+        const arrow=i>0?`<div style="display:flex;flex-direction:column;align-items:center;"><span class="dex-evo-arrow">→</span>${mon.method?`<span class="dex-evo-method">${mon.method}</span>`:''}</div>`:'';
+        return`${arrow}<div class="dex-evo-mon" onclick="closeDexModal();setTimeout(()=>openDexPokemon(${mon.id},'${mon.name}'),120)">
+          <img class="dex-evo-img" src="${img}" alt="${mon.name}" loading="lazy">
+          <span class="dex-evo-name">${capitalise(mon.name)}</span>
+          <span class="dex-evo-num">#${String(mon.id).padStart(3,'0')}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // Primary type bg for hero tint
+    const primaryCol=getTypeColor(types[0]);
+
+    panel.innerHTML=`
+      <div class="dex-entry-hero" style="background:${primaryCol}12">
+        <img class="dex-entry-artwork" src="${artwork}" alt="${name}" loading="lazy">
+        <div class="dex-entry-hero-info">
+          <div class="dex-entry-num">#${String(id).padStart(3,'0')} · ${genus}</div>
+          <div class="dex-entry-name">${capitalise(name)}</div>
+          <div class="dex-entry-types">${typePills}</div>
+          <div class="dex-physicals">
+            <div class="dex-physical-box">
+              <div class="dex-physical-val">${heightM}m</div>
+              <div class="dex-physical-lbl">Height</div>
+            </div>
+            <div class="dex-physical-box">
+              <div class="dex-physical-val">${weightKg}kg</div>
+              <div class="dex-physical-lbl">Weight</div>
+            </div>
+          </div>
+        </div>
+        <button class="dex-entry-close" onclick="closeDexModal()">×</button>
+      </div>
+      <div class="dex-entry-body">
+        <div class="dex-flavour">
+          <div class="dex-section-label">Pokédex Entry</div>
+          <div style="font-size:14px;color:var(--text);line-height:1.7;">${flavour}</div>
+          ${flavourGame?`<div class="dex-flavour-game">— ${flavourGame}</div>`:''}
+        </div>
+        <div>
+          <div class="dex-section-label">Abilities</div>
+          <div class="dex-abilities">${abilitiesHtml||'<span style="color:var(--muted);font-size:13px;">None listed</span>'}</div>
+        </div>
+        <div class="dex-stats">
+          <div class="dex-section-label">Base Stats</div>
+          ${statsHtml}
+        </div>
+        ${evoChain.length>1?`
+        <div style="grid-column:1/-1;">
+          <div class="dex-section-label">Evolution Chain</div>
+          <div class="dex-evo-chain">${evoHtml}</div>
+        </div>`:''}
+      </div>`;
+  }catch(e){
+    panel.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted);">Could not load Pokédex data — check your connection.<br><br><button class="back-btn" onclick="closeDexModal()">Close</button></div>`;
+  }
+}
+
+function closeDexModal(evt){
+  if(evt && evt.target !== document.getElementById('dexPokeModal'))return;
+  document.getElementById('dexPokeModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// ── MARKET VALUES ──
+const GRADE_MULTIPLIERS={
+  raw:1,
+  psa10:8.5,psa9:3.2,psa8:1.8,psa7:1.3,
+  cgc10:7.0,cgc9:2.8,
+  bgs10:6.5,bgs9:2.5
+};
+const GRADE_LABELS={
+  raw:'Raw',psa10:'PSA 10',psa9:'PSA 9',psa8:'PSA 8',psa7:'PSA 7',
+  cgc10:'CGC 10',cgc9:'CGC 9.5',bgs10:'BGS 10',bgs9:'BGS 9.5'
+};
+const GRADE_COLORS={
+  raw:'#888',psa10:'#f7c948',psa9:'#aed6f1',psa8:'#82e0aa',psa7:'#f0b27a',
+  cgc10:'#c39bd3',cgc9:'#a9cce3',bgs10:'#ff8a65',bgs9:'#ffb74d'
+};
+
+let marketDebounceTimer=null;
+function onMarketSearch(){
+  clearTimeout(marketDebounceTimer);
+  marketDebounceTimer=setTimeout(doMarketSearch,420);
+}
+
+async function doMarketSearch(){
+  const val=(document.getElementById('marketSearchInput')?.value||'').trim();
+  const area=document.getElementById('marketCardsArea');
+  const countEl=document.getElementById('marketResultCount');
+  if(!val){area.innerHTML='<div class="market-empty">Search for a Pokémon above to see current market prices</div>';countEl.textContent='';return;}
+  area.innerHTML='<div class="market-empty"><div class="spin-ring"></div>&nbsp;Loading…</div>';
+  try{
+    const res=await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(val)}"&pageSize=250&orderBy=set.releaseDate`);
+    marketSearchResults=(await res.json()).data||[];
+    renderMarketResults();
+  }catch(e){
+    area.innerHTML='<div class="market-empty">Search failed — check your connection.</div>';
+  }
+}
+
+function renderMarketResults(){
+  const area=document.getElementById('marketCardsArea');
+  const countEl=document.getElementById('marketResultCount');
+  const grade=document.getElementById('marketGradeSelect')?.value||'raw';
+  const finish=document.getElementById('marketFinishSelect')?.value||'auto';
+  const mult=GRADE_MULTIPLIERS[grade]||1;
+  const gradeLabel=GRADE_LABELS[grade]||grade;
+  const gradeColor=GRADE_COLORS[grade]||'#888';
+  const noteEl=document.getElementById('marketGradeNote');
+  if(grade==='raw'){noteEl.textContent='Raw prices sourced from TCGplayer and Cardmarket. Values displayed in GBP.';}
+  else{noteEl.textContent=`${gradeLabel} prices are estimated using a ${mult}× multiplier on raw market price. These are indicative only — actual graded card prices vary significantly by card and condition. Always verify on eBay or PSA/CGC marketplaces.`;}
+  if(!marketSearchResults.length){countEl.textContent='';area.innerHTML='<div class="market-empty">No cards found — try a different search.</div>';return;}
+  countEl.textContent=`${marketSearchResults.length} cards found`;
+  area.innerHTML=`<div class="market-cards-grid">${marketSearchResults.map(card=>{
+    const priceData=getCardPriceData(card,finish==='auto'?'auto':finish);
+    const rawGBP=priceData?priceData.amountGBP:null;
+    const gradedGBP=rawGBP!==null?(rawGBP*mult):null;
+    const img=card.images?.small||'';
+    return`<div class="market-card-item">
+      <div class="market-card-img-wrap">${img?`<img src="${img}" alt="${card.name}" loading="lazy">`:'<div style="background:var(--surface3);width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);">No image</div>'}</div>
+      <div class="market-card-body">
+        <div class="market-card-name">${card.name}</div>
+        <div class="market-card-set">${card.set?.name||''} #${card.number}${card.rarity?' · '+card.rarity:''}</div>
+        <div><span class="market-card-grade-badge" style="background:${gradeColor}22;color:${gradeColor}">${gradeLabel}</span></div>
+        <div class="market-card-price">${gradedGBP!==null?formatGBP(gradedGBP):'—'}</div>
+        ${grade!=='raw'&&rawGBP!==null?`<div class="market-card-source">Raw: ${formatGBP(rawGBP)} · ${mult}× multiplier</div>`:''}
+        ${priceData?`<div class="market-card-source">${priceData.source}${priceData.finishLabel?' · '+priceData.finishLabel:''}</div>`:'<div class="market-card-source">No market data</div>'}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function initMarketChips(){
+  const chips=['Charizard','Pikachu','Mewtwo','Gengar','Eevee','Blastoise'];
+  document.getElementById('marketPokeChips').innerHTML=chips.map(p=>`<button class="poke-chip" onclick="quickMarketSearch('${p}',this)">${p}</button>`).join('');
+}
+
+function quickMarketSearch(name,el){
+  document.querySelectorAll('#marketPokeChips .poke-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('marketSearchInput').value=name;
+  doMarketSearch();
+}
+
+// ── CARD SCANNER ──
+let scanStream=null;
+let scanPendingCard=null;
+let scanCandidates=[];
+let scanHistory=JSON.parse(localStorage.getItem('pb_scanHistory')||'[]');
+
+function setScanStatus(msg, type=''){
+  const el=document.getElementById('scanStatus');
+  el.className='scan-status'+(type?' '+type:'');
+  el.innerHTML=type==='thinking'
+    ?`<div class="spin-ring" style="width:16px;height:16px;border-width:2px;flex-shrink:0"></div>${msg}`
+    :msg;
+}
+
+async function startCamera(){
+  try{
+    const wrap=document.getElementById('scanCameraWrap');
+    const video=document.getElementById('scanVideo');
+    scanStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
+    });
+    video.srcObject=scanStream;
+    wrap.style.display='';
+    document.getElementById('scanUploadArea').style.display='none';
+    document.getElementById('scanStartBtn').style.display='none';
+    document.getElementById('scanCaptureBtn').style.display='';
+    document.getElementById('scanStopBtn').style.display='';
+    setScanStatus('Camera ready — frame your card and tap Identify Card.');
+  }catch(e){
+    setScanStatus('Camera access denied or unavailable. Use the upload option above instead.','error');
+  }
+}
+
+function stopCamera(){
+  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
+  document.getElementById('scanCameraWrap').style.display='none';
+  document.getElementById('scanUploadArea').style.display='';
+  document.getElementById('scanStartBtn').style.display='';
+  document.getElementById('scanCaptureBtn').style.display='none';
+  document.getElementById('scanStopBtn').style.display='none';
+  setScanStatus('Point your camera at a Pokémon card, then tap Identify Card — or upload a photo above.');
+}
+
+function captureAndIdentify(){
+  const video=document.getElementById('scanVideo');
+  if(!video.srcObject){setScanStatus('No camera active.','error');return;}
+  const canvas=document.createElement('canvas');
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+  identifyCardFromImage(dataUrl);
+}
+
+function onScanFileChosen(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>identifyCardFromImage(e.target.result);
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+
+// ── Google Cloud Vision helpers ──────────────────────────────────────────────
+// API key is stored securely in Netlify environment variables — never in this file.
+
+async function runGoogleVisionWeb(dataUrl){
+  const base64 = dataUrl.split(',')[1];
+  if(!base64) throw new Error('Could not read image data.');
+
+  // Send both WEB_DETECTION (image matching) and TEXT_DETECTION (card number fallback)
+  const body = {
+    requests: [{
+      image: { content: base64 },
+      features: [
+        { type: 'WEB_DETECTION', maxResults: 10 },
+        { type: 'TEXT_DETECTION', maxResults: 1 }
+      ]
+    }]
+  };
+
+  const resp = await fetch('/.netlify/functions/vision', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if(!resp.ok){
+    const err = await resp.json().catch(()=>({error:{message:resp.statusText}}));
+    throw new Error(`Vision error: ${err?.error?.message || resp.statusText}`);
+  }
+
+  const data = await resp.json();
+  const response = data?.responses?.[0];
+
+  // Extract web entities — these are labels like "Charizard (Trading card)"
+  const webEntities = response?.webDetection?.webEntities || [];
+  const bestPages = response?.webDetection?.pagesWithMatchingImages || [];
+
+  // Extract card name from web entities — find the most relevant Pokémon entity
+  const pokemonStopWords = ['pokemon','trading card','card game','tcg','nintendo','game freak','illustration','art','holo','rare','common','uncommon'];
+  let webName = '';
+  let webNumber = '';
+
+  for(const entity of webEntities){
+    if(!entity.description || entity.score < 0.3) continue;
+    const desc = entity.description.trim();
+    const lower = desc.toLowerCase();
+    // Skip generic terms
+    if(pokemonStopWords.some(w => lower === w)) continue;
+    // Skip very short or very long
+    if(desc.length < 3 || desc.length > 40) continue;
+    // Prefer entries that look like card names (not sentences)
+    if(desc.split(' ').length <= 5){
+      webName = desc;
+      break;
+    }
+  }
+
+  // Also try to extract card number from pages URLs or titles
+  for(const page of bestPages){
+    const url = page.url || '';
+    const numMatch = url.match(/[/-](\d{1,3})[/-](\d{1,3})/);
+    if(numMatch){ webNumber = numMatch[1]; break; }
+  }
+
+  // Fallback: also parse OCR text for the card number
+  const ocrText = response?.fullTextAnnotation?.text || response?.textAnnotations?.[0]?.description || '';
+  if(!webNumber && ocrText){
+    const numMatch = ocrText.match(/\b(\d{1,3})\s*\/\s*\d{1,3}\b/);
+    if(numMatch) webNumber = numMatch[1];
+  }
+
+  // Also try to get name from OCR if web detection didn't give us one
+  if(!webName && ocrText){
+    const lines = ocrText.split('\n').map(l=>l.trim()).filter(l=>l.length>2 && l.length<30);
+    if(lines.length) webName = lines[0];
+  }
+
+  return { name: webName, number: webNumber, nameCandidates: webName ? [webName] : [], tokenCandidates: webName ? webName.split(' ') : [] };
+}
+
+// ── Main identify function (uses Google Vision Web Detection) ─────────────────
+
+async function identifyCardFromImage(dataUrl){
+  dismissScanResult();
+  setScanStatus('Analysing card image…','thinking');
+  try{
+    const parsed = await runGoogleVisionWeb(dataUrl);
+
+    if(!parsed.name && !parsed.number){
+      setScanStatus('Could not identify the card. Try a clearer, well-lit photo with the full card visible.','error');
+      return;
+    }
+
+    await showScanResult(parsed);
+  }catch(e){
+    const msg = e?.message || String(e);
+    setScanStatus(`Identification failed — ${msg}.`,'error');
+    console.error(e);
+  }
+}
+
+function getScanCrops(dataUrl){
+  const img=new Image();
+  img.src=dataUrl;
+  return [
+    { label:'full', dataUrl },
+    ...buildCropDataUrls(img, dataUrl)
+  ];
+}
+
+function buildCropDataUrls(img, fallbackDataUrl){
+  const crops=[];
+  if(!img.complete || !img.naturalWidth || !img.naturalHeight){
+    return crops;
+  }
+  const w=img.naturalWidth, h=img.naturalHeight;
+  const regions=[
+    { label:'top', x:0.08, y:0.04, w:0.84, h:0.20 },
+    { label:'bottom', x:0.50, y:0.82, w:0.42, h:0.12 },
+    { label:'center', x:0.14, y:0.08, w:0.72, h:0.78 }
+  ];
+  for(const r of regions){
+    try{
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(50, Math.floor(w*r.w));
+      canvas.height=Math.max(20, Math.floor(h*r.h));
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(
+        img,
+        Math.floor(w*r.x), Math.floor(h*r.y), Math.floor(w*r.w), Math.floor(h*r.h),
+        0, 0, canvas.width, canvas.height
+      );
+      crops.push({ label:r.label, dataUrl: canvas.toDataURL('image/jpeg', 0.92) });
+    }catch(_e){}
+  }
+  return crops;
+}
+
+function normalizeOCRText(t){
+  return String(t||'')
+    .replace(/[|]/g,'I')
+    .replace(/[“”]/g,'"')
+    .replace(/[’]/g,"'")
+    .replace(/[^\S\r\n]+/g,' ')
+    .replace(/\r/g,'\n');
+}
+
+function parsePokemonCardOCR(results){
+  const byLabel=Object.fromEntries(results.map(r=>[r.label, normalizeOCRText(r.text)]));
+  const full=byLabel.full || '';
+  const top=byLabel.top || full;
+  const bottom=byLabel.bottom || full;
+  const center=byLabel.center || full;
+  const combined=[top,bottom,full,center].join('\n');
+
+  const numberPatterns=[
+    /\b([A-Z]{1,4}\s?\d{1,4})\b/,
+    /\b(\d{1,3}\s*\/\s*[A-Z0-9]{1,4})\b/i,
+    /\b(\d{1,3}\s*\/\s*\d{1,3})\b/
+  ];
+  let number='';
+  for(const src of [bottom, full, center]){
+    for(const rx of numberPatterns){
+      const m=src.match(rx);
+      if(m && m[1]){
+        number=m[1].replace(/\s+/g,'').toUpperCase();
+        break;
+      }
+    }
+    if(number) break;
+  }
+
+  const ignorePrefixes=['basic energy','stage 1','stage 2','trainer','supporter','item','stadium','pokemon tool','ability','retreat cost','weakness','resistance','hp','put ','flip ','your opponent','search your'];
+  const candidateNames=[];
+  const candidateTokens=[];
+  for(const line of top.split(/\n+/).concat(full.split(/\n+/))){
+    const clean=line.replace(/[^A-Za-z0-9 .\-']+/g,' ').replace(/\s+/g,' ').trim();
+    if(!clean) continue;
+    const lower=clean.toLowerCase();
+    if(ignorePrefixes.some(p=>lower.startsWith(p))) continue;
+    if(/^\d/.test(clean)) continue;
+    if(clean.length < 3 || clean.length > 32) continue;
+    if(clean.split(' ').length > 4) continue;
+    if(/\b(hp|lv|no\.)\b/i.test(clean)) continue;
+    candidateNames.push(clean);
+    clean.split(' ').forEach(tok=>{
+      if(/^[A-Za-z][A-Za-z'\-]{2,}$/.test(tok)) candidateTokens.push(tok);
+    });
+  }
+
+  const uniqueNames=[...new Set(candidateNames)].slice(0,6);
+  const uniqueTokens=[...new Set(candidateTokens)].slice(0,8);
+  const primaryName=uniqueNames[0] || uniqueTokens[0] || '';
+
+  return {
+    name: primaryName,
+    nameCandidates: uniqueNames,
+    tokenCandidates: uniqueTokens,
+    number,
+    confidence: number && primaryName ? 'medium' : (primaryName ? 'low' : 'very low'),
+    rawText: combined
+  };
+}
+
+function uniqCards(cards){
+  const seen=new Set();
+  const out=[];
+  for(const c of cards){
+    if(!c?.id || seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(c);
+  }
+  return out;
+}
+
+function scoreScanCandidate(card, result){
+  let score=0;
+  const cardName=(card.name||'').toLowerCase();
+  const setName=(card.set?.name||'').toLowerCase();
+  const num=(card.number||'').replace(/\s+/g,'').toUpperCase();
+
+  if(result.number){
+    const wantedBase=result.number.split('/')[0].replace(/^0+/,'');
+    const cardBase=num.split('/')[0].replace(/^0+/,'');
+    if(cardBase && wantedBase && cardBase===wantedBase) score += 80;
+    if(num===result.number) score += 30;
+  }
+
+  for(const cand of (result.nameCandidates||[])){
+    const low=cand.toLowerCase();
+    if(cardName===low) score += 90;
+    else if(cardName.includes(low) || low.includes(cardName)) score += 55;
+  }
+
+  for(const tok of (result.tokenCandidates||[])){
+    const low=tok.toLowerCase();
+    if(cardName.includes(low)) score += 15;
+    if(setName.includes(low)) score += 5;
+  }
+
+  if(card.images?.small || card.images?.large) score += 3;
+  return score;
+}
+
+async function fetchScanCandidates(result){
+  const collected=[];
+  const requests=[];
+
+  if(result.number){
+    const base=result.number.split('/')[0].replace(/^0+/,'') || result.number;
+    requests.push(`https://api.pokemontcg.io/v2/cards?q=number:${encodeURIComponent(base)}&pageSize=40&orderBy=-set.releaseDate`);
+  }
+
+  const exactNames=(result.nameCandidates||[]).slice(0,3);
+  for(const nm of exactNames){
+    requests.push(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(nm)}"&pageSize=20&orderBy=-set.releaseDate`);
+  }
+
+  const token = (result.tokenCandidates||[]).find(t => t.length >= 4);
+  if(token){
+    requests.push(`https://api.pokemontcg.io/v2/cards?q=name:${encodeURIComponent(token)}&pageSize=30&orderBy=-set.releaseDate`);
+  }
+
+  if(!requests.length){
+    throw new Error('Could not read enough card text to search');
+  }
+
+  const responses=await Promise.allSettled(requests.map(url=>fetch(url).then(r=>r.json())));
+  for(const r of responses){
+    if(r.status==='fulfilled'){
+      collected.push(...(r.value?.data||[]));
+    }
+  }
+
+  const unique=uniqCards(collected)
+    .map(card=>({ card, score: scoreScanCandidate(card, result) }))
+    .filter(x=>x.score > 0)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,8)
+    .map(x=>x.card);
+
+  return unique;
+}
+
+function chooseScanCandidate(cardId){
+  const card=scanCandidates.find(c=>c.id===cardId);
+  if(!card) return;
+  scanPendingCard=card;
+  renderScanCandidateState();
+}
+
+function renderScanCandidateState(){
+  const card=scanPendingCard;
+  const resultCardName=card?.name || 'Possible match';
+  const img=card?.images?.large||card?.images?.small||'';
+  const setName=card?.set?.name||'Unknown set';
+  const num=card?.number||'?';
+  const already=card && isCardAlreadyOwned(card);
+
+  document.getElementById('scanResultImg').src=img;
+  document.getElementById('scanResultImg').style.display=img?'':'none';
+  document.getElementById('scanResultName').textContent=resultCardName;
+  document.getElementById('scanResultMeta').textContent=`${setName} · #${num}`;
+  const addBtn=document.getElementById('scanResultAddBtn');
+  if(already){
+    addBtn.textContent='✓ Already in collection';
+    addBtn.className='scan-result-add already';
+  } else {
+    addBtn.textContent='✓ Add to Collection';
+    addBtn.className='scan-result-add';
+  }
+
+  const list=document.getElementById('scanResultCandidates');
+  list.innerHTML=scanCandidates.map(c=>`
+    <button class="scan-candidate-btn ${card?.id===c.id?'active':''}" onclick="chooseScanCandidate('${c.id}')">
+      ${c.images?.small?`<img class="scan-candidate-thumb" src="${c.images.small}" alt="">`:`<div class="scan-candidate-thumb"></div>`}
+      <div class="scan-candidate-info">
+        <div class="scan-candidate-name">${c.name}</div>
+        <div class="scan-candidate-meta">${c.set?.name||''} · #${c.number||'?'}</div>
+      </div>
+    </button>
+  `).join('');
+  document.getElementById('scanResult').classList.add('visible');
+}
+
+async function showScanResult(result){
+  setScanStatus(`Searching likely matches${result.number ? ` for #${result.number}` : ''}…`,'thinking');
+  try{
+    scanCandidates=await fetchScanCandidates(result);
+    if(!scanCandidates.length){
+      setScanStatus(`Couldn’t find a match from OCR text. Try a closer photo, or make sure the card number is visible.`,'error');
+      return;
+    }
+    scanPendingCard=scanCandidates[0];
+    renderScanCandidateState();
+    setScanStatus(`Found ${scanCandidates.length} possible match${scanCandidates.length===1?'':'es'}. Pick the right card below.`,'thinking');
+  }catch(e){
+    console.error(e);
+    setScanStatus(`Found the card text but couldn’t search matches — ${e?.message || e}.`,'error');
+  }
+}
+
+function isCardAlreadyOwned(card){
+  const sid=card.set?.id||card._setId;
+  return sid&&(ownedCards[sid]||[]).includes(card.id);
+}
+
+function confirmAddCard(){
+  if(!scanPendingCard){setScanStatus('No card to add.','error');return;}
+  const card=scanPendingCard;
+  const sid=card.set?.id;
+  if(!sid){setScanStatus('Could not determine the set for this card.','error');return;}
+  if(!ownedCards[sid])ownedCards[sid]=[];
+  if(!ownedCards[sid].includes(card.id)){
+    ownedCards[sid].push(card.id);
+    // Also make sure the set is being tracked
+    if(!isSetTracked(sid))mySets.add(sid);
+    save();updateGlobalStats();renderMySets();
+    // Add to scan history
+    scanHistory.unshift({
+      id:card.id,name:card.name,setName:card.set?.name||'',
+      number:card.number,img:card.images?.small||''
+    });
+    if(scanHistory.length>20)scanHistory.pop();
+    localStorage.setItem('pb_scanHistory',JSON.stringify(scanHistory));
+    renderScanHistory();
+    setScanStatus(`<strong>${card.name}</strong> added to your collection!`,'success');
+    document.getElementById('scanResultAddBtn').textContent='✓ Added!';
+    document.getElementById('scanResultAddBtn').className='scan-result-add already';
+  } else {
+    setScanStatus(`<strong>${card.name}</strong> is already in your collection.`,'success');
+  }
+  scanPendingCard=null;
+}
+
+function dismissScanResult(){
+  document.getElementById('scanResult').classList.remove('visible');
+  const list=document.getElementById('scanResultCandidates');
+  if(list) list.innerHTML='';
+  scanPendingCard=null;
+  scanCandidates=[];
+}
+
+function renderScanHistory(){
+  const wrap=document.getElementById('scanHistoryWrap');
+  const list=document.getElementById('scanHistoryList');
+  if(!scanHistory.length){wrap.style.display='none';return;}
+  wrap.style.display='';
+  list.innerHTML=scanHistory.map(h=>`
+    <div class="scan-history-item">
+      ${h.img?`<img class="scan-history-thumb" src="${h.img}" alt="">`:'<div style="width:32px;height:44px;background:var(--surface3);border-radius:4px;flex-shrink:0"></div>'}
+      <div class="scan-history-info">
+        <div class="scan-history-name">${h.name}</div>
+        <div class="scan-history-set">${h.setName} · #${h.number}</div>
+      </div>
+      <span class="scan-history-badge">Added</span>
+    </div>`).join('');
+}
+
+// ── INIT ──
+async function loadAllSets(){
+  try{
+    const r=await fetch('https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=500');
+    allSets=(await r.json()).data||[];
+    renderMySets();renderAllSets();updateGlobalStats();initDeckBuilder();renderChaseCards();renderHighlights();
+  }catch(e){
+    document.getElementById('allSetsContainer').innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)">Could not load sets — check your connection.</div>';
+  }
+}
+loadExchangeRates().finally(()=>loadAllSets());
+initAuth();
+
+// Background image
+applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+
+// PWA
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;document.getElementById('installBanner').style.display='flex';});
+window.addEventListener('appinstalled',()=>{document.getElementById('installBanner').style.display='none';deferredPrompt=null;});
+function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;document.getElementById('installBanner').style.display='none';});}
+</script>
+</body>
+</html>
