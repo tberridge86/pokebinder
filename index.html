@@ -879,6 +879,19 @@ header{background:var(--red);border-bottom:3px solid var(--red-dark);padding:0 2
 .trade-public-preview{display:flex;gap:10px;overflow-x:auto;padding-top:6px;}
 .trade-public-chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;background:var(--surface3);border:1px solid var(--border);border-radius:999px;padding:7px 10px;}
 .trade-public-chip img{width:28px;height:39px;object-fit:cover;border-radius:4px;}
+.trade-toolbar{display:flex;flex-direction:column;gap:10px;margin:10px 0 14px;}
+.trade-toolbar-top{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.trade-search-wrap{position:relative;flex:1;min-width:220px;}
+.trade-search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);stroke-width:2;fill:none;pointer-events:none;}
+#tradeHubSearchInput{width:100%;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;padding:11px 14px 11px 40px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s;}
+#tradeHubSearchInput::placeholder{color:var(--muted);}
+#tradeHubSearchInput:focus{border-color:rgba(255,215,0,0.4);}
+.trade-filter-select{min-width:160px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;}
+.trade-filter-select:focus{border-color:rgba(255,215,0,0.4);}
+.trade-toolbar-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;}
+.trade-result-count{font-size:12px;color:var(--muted);}
+.trade-clear-btn{background:none;border:1px solid var(--border2);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.trade-clear-btn:hover{border-color:var(--gold);color:var(--gold);}
 .profile-checkrow{display:flex;align-items:center;gap:10px;background:var(--surface3);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;}
 .profile-checkrow input{accent-color:#FFD700;}
 @media(max-width:900px){.trade-grid{grid-template-columns:1fr;}}
@@ -1763,6 +1776,21 @@ header{height:auto;min-height:72px;padding:12px 28px;}
         <div class="section-heading" style="margin-top:4px;">Public binder preview</div>
         <div class="trade-public-preview" id="tradePublicPreview"></div>
         <div class="section-heading" style="margin-top:18px;">Open to trade</div>
+        <div class="trade-toolbar">
+          <div class="trade-toolbar-top">
+            <div class="trade-search-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+              <input id="tradeHubSearchInput" type="text" placeholder="Search trade hub by card name, set, or card number…" oninput="renderTradeHub()">
+            </div>
+            <select id="tradeHubSetFilter" class="trade-filter-select" onchange="renderTradeHub()">
+              <option value="all">All sets</option>
+            </select>
+          </div>
+          <div class="trade-toolbar-meta">
+            <div class="trade-result-count" id="tradeHubResultCount">Showing all trade listings</div>
+            <button class="trade-clear-btn" type="button" onclick="clearTradeHubFilters()">Clear filters</button>
+          </div>
+        </div>
         <div id="tradeListArea" class="trade-empty">You have not marked any cards as open to trade yet.</div>
       </div>
       <div class="trade-card">
@@ -3568,8 +3596,54 @@ function renderOfferCard(offer, kind='incoming'){
   const balanceText=Math.abs(totals.gap)<1 ? 'Estimated to be close in value.' : `Estimated gap: <strong>${formatGBP(Math.abs(totals.gap))}</strong>.`;
   return `<div class="trade-offer"><div class="trade-offer-top"><div><div class="trade-offer-name">${offer.trader}</div><div class="trade-offer-meta">${kind==='incoming' ? 'Interested in your '+((offer.targetCards&&offer.targetCards[0]?.name)||offer.target?.name||'card') : 'You offered for '+((offer.targetCards&&offer.targetCards[0]?.name)||offer.target?.name||'card')}</div></div><div class="trade-offer-status">${statusLabel(offer.status)}</div></div><div class="trade-offer-grid">${renderTradeCardsStack(offer.targetCards || (offer.target?[offer.target]:[]), kind==='incoming' ? 'You give' : 'You want')}<div class="trade-vs">VS</div>${renderTradeCardsStack(offer.offeredCards || [], kind==='incoming' ? 'You receive' : 'You offer')}</div><div class="trade-balance ${balanceClass}">${balanceText}</div><div class="trade-note">Card-for-card only. Values are guidance, not a ruling on fairness.${offer.tracking ? ` Tracking: <strong>${offer.tracking}</strong>.` : ''}</div><div class="trade-offer-timeline">${renderTradeTimeline(offer.status)}</div>${renderOfferActions(offer, kind)}</div>`;
 }
+function getTradeHubFilters(){
+  return {
+    query:(document.getElementById('tradeHubSearchInput')?.value||'').trim().toLowerCase(),
+    set:(document.getElementById('tradeHubSetFilter')?.value||'all').trim()
+  };
+}
+function tradeHubMatches(card, filters){
+  if(!card) return false;
+  const query = filters?.query || '';
+  const setFilter = filters?.set || 'all';
+  if(setFilter !== 'all' && (card.setId||'') !== setFilter) return false;
+  if(!query) return true;
+  const haystack = [
+    card.name,
+    card.setName,
+    card.number,
+    card.rarity,
+    card.id
+  ].filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+function syncTradeHubSetFilterOptions(){
+  const select=document.getElementById('tradeHubSetFilter');
+  if(!select) return;
+  const current=select.value||'all';
+  const allCards=[
+    ...tradeCards,
+    ...getMarketplaceListings().map(listing=>listing.card).filter(Boolean)
+  ];
+  const seen=new Map();
+  allCards.forEach(card=>{
+    if(card?.setId && card?.setName && !seen.has(card.setId)) seen.set(card.setId, card.setName);
+  });
+  const options=['<option value="all">All sets</option>', ...Array.from(seen.entries()).sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=>`<option value="${id}">${name}</option>`)];
+  select.innerHTML=options.join('');
+  if(seen.has(current) || current==='all') select.value=current;
+}
+function clearTradeHubFilters(){
+  const search=document.getElementById('tradeHubSearchInput');
+  const setSelect=document.getElementById('tradeHubSetFilter');
+  if(search) search.value='';
+  if(setSelect) setSelect.value='all';
+  renderTradeHub();
+}
 function renderTradeHub(){
   ensureTradeFlows();
+  syncTradeHubSetFilterOptions();
+  const filters=getTradeHubFilters();
   const listArea=document.getElementById('tradeListArea');
   const offersArea=document.getElementById('tradeOffersArea');
   const publicSummary=document.getElementById('tradePublicSummary');
@@ -3579,6 +3653,11 @@ function renderTradeHub(){
   const marketArea=document.getElementById('tradeMarketArea');
   const outgoingArea=document.getElementById('tradeOutgoingArea');
   const summaryBar=document.getElementById('tradeSummaryBar');
+  const resultCount=document.getElementById('tradeHubResultCount');
+  const filteredTradeCards=tradeCards.filter(card=>tradeHubMatches(card, filters));
+  const marketplaceListings=getMarketplaceListings();
+  const filteredMarketplaceListings=marketplaceListings.filter(listing=>tradeHubMatches(listing.card, filters));
+
   if(toggleA) toggleA.checked=!!tradeProfile.publicBinder;
   if(toggleB) toggleB.checked=!!tradeProfile.publicTrades;
 
@@ -3596,13 +3675,22 @@ function renderTradeHub(){
     const active=tradeIncomingOffers.filter(o=>activeStatuses.has(o.status)).length + tradeOutgoingOffers.filter(o=>activeStatuses.has(o.status)).length;
     summaryBar.innerHTML = `<div class="trade-summary-chip"><strong>${tradeCards.length}</strong> cards listed</div><div class="trade-summary-chip"><strong>${tradeIncomingOffers.filter(o=>o.status==='pending').length}</strong> incoming pending</div><div class="trade-summary-chip"><strong>${tradeOutgoingOffers.filter(o=>o.status==='pending').length}</strong> sent pending</div><div class="trade-summary-chip"><strong>${active}</strong> active trades</div>`;
   }
+  if(resultCount){
+    const queryActive=!!filters.query;
+    const setActive=filters.set!=='all';
+    const filterLabel=(queryActive || setActive) ? 'filtered' : 'total';
+    resultCount.textContent=`Showing ${filteredTradeCards.length} of ${tradeCards.length} your listings and ${filteredMarketplaceListings.length} of ${marketplaceListings.length} marketplace listings · ${filterLabel}`;
+  }
   if(listArea){
     if(!tradeCards.length){
       listArea.className='trade-empty';
       listArea.innerHTML='Open any owned card and tap <strong>Open to trade</strong> to build your trade list.';
+    }else if(!filteredTradeCards.length){
+      listArea.className='trade-empty';
+      listArea.innerHTML='No cards in your trade list match those filters.';
     }else{
       listArea.className='trade-list';
-      listArea.innerHTML=tradeCards.map(t=>`<div class="trade-item"><img src="${t.img}" alt="${t.name}"><div class="trade-item-body"><div class="trade-item-name">${t.name}</div><div class="trade-item-meta">${t.setName}${t.number ? ' · #'+t.number : ''}${t.rarity ? ' · '+t.rarity : ''}</div><div class="trade-item-value">${formatGBP(Number(t.value)||0)}</div><div class="trade-item-actions"><button class="trade-mini-btn" onclick="openTradeCard('${t.id}','${t.setId}')">Open card</button><button class="trade-mini-btn" onclick="removeTradeCard('${t.key}')">Remove</button></div></div></div>`).join('');
+      listArea.innerHTML=filteredTradeCards.map(t=>`<div class="trade-item"><img src="${t.img}" alt="${t.name}"><div class="trade-item-body"><div class="trade-item-name">${t.name}</div><div class="trade-item-meta">${t.setName}${t.number ? ' · #'+t.number : ''}${t.rarity ? ' · '+t.rarity : ''}</div><div class="trade-item-value">${formatGBP(Number(t.value)||0)}</div><div class="trade-item-actions"><button class="trade-mini-btn" onclick="openTradeCard('${t.id}','${t.setId}')">Open card</button><button class="trade-mini-btn" onclick="removeTradeCard('${t.key}')">Remove</button></div></div></div>`).join('');
     }
   }
   if(offersArea){
@@ -3610,12 +3698,11 @@ function renderTradeHub(){
     offersArea.innerHTML = tradeIncomingOffers.length ? tradeIncomingOffers.map(o=>renderOfferCard(o,'incoming')).join('') : 'Incoming offers will appear here when other collectors target your listings.';
   }
   if(marketArea){
-    const listings=getMarketplaceListings();
-    marketArea.className = listings.length ? '' : 'trade-empty';
-    marketArea.innerHTML=listings.length ? listings.map(listing=>{
+    marketArea.className = filteredMarketplaceListings.length ? '' : 'trade-empty';
+    marketArea.innerHTML=filteredMarketplaceListings.length ? filteredMarketplaceListings.map(listing=>{
       const c=listing.card;
       return `<div class="trade-market-item"><img src="${c.img}" alt="${c.name}"><div><div class="trade-market-name">${c.name}</div><div class="trade-market-meta">${listing.trader} · ${c.setName}${c.number ? ' · #'+c.number : ''}<br>${c.rarity||'Trade listing'}</div><div class="trade-pill-row"><span class="trade-soft-pill">Public listing</span><span class="trade-soft-pill">Card for card</span></div></div><div><div class="trade-market-price">${formatGBP(Number(c.value)||0)}</div><button class="trade-stage-btn primary" onclick="openTradeBuilder(getMarketplaceListings().find(x=>x.id==='${listing.id}').card, 'offer')">Offer trade</button></div></div>`;
-    }).join('') : 'Marketplace listings will appear here once other users list cards publicly.';
+    }).join('') : (marketplaceListings.length ? 'No marketplace listings match those filters.' : 'Marketplace listings will appear here once other users list cards publicly.');
   }
   if(outgoingArea){
     outgoingArea.className = tradeOutgoingOffers.length ? 'trade-offer-list' : 'trade-empty';
