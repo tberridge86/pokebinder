@@ -2000,7 +2000,9 @@ function getDefaultBackgroundDataUrl(){
 function normalizeAvatarOffset(value){
   const n=Number(value);
   if(!Number.isFinite(n)) return 0;
-  if(n >= 0 && n <= 100) return Math.max(-50, Math.min(50, n - 50));
+  // Stored crop offsets in this app are already in the range -50..50, where 0 is centred.
+  // Only convert legacy 0..100 values when they clearly look like old absolute percentages.
+  if(n > 50 && n <= 100) return Math.max(-50, Math.min(50, n - 50));
   return Math.max(-50, Math.min(50, n));
 }
 function getProfileSettingsFromUser(user){
@@ -2431,14 +2433,13 @@ async function saveProfileSettings(){
     tradeProfile.publicBinder=!!profileUpdates.public_binder;
     tradeProfile.publicTrades=!!profileUpdates.public_trades;
     localStorage.setItem('pb_tradeProfile', JSON.stringify(tradeProfile));
-    fillProfileForm(currentUser);
     applyBackgroundSettings(currentProfileSettings);
-    renderAvatarCrop(currentProfileSettings);
-    syncAvatarCropControls(currentProfileSettings);
     const preview=document.getElementById('profileAvatarPreview');
     if(preview) setAvatarPreview(preview, currentProfileSettings.avatar_url || '', '');
     const avatarBtn=document.getElementById('avatarBtn');
     if(avatarBtn) setAvatarPreview(avatarBtn, currentProfileSettings.avatar_url || '', getAvatarLabel());
+    renderAvatarCrop(currentProfileSettings);
+    syncAvatarCropControls(currentProfileSettings);
     const pw=document.getElementById('profileNewPassword'); if(pw) pw.value='';
     await syncTradeListingVisibility();
     await loadTradeHubFromSupabase();
