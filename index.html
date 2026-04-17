@@ -1898,7 +1898,7 @@ header{height:auto;min-height:72px;padding:12px 28px;}
         </div>
 
         <div class="profile-actions">
-          <button class="profile-btn primary" onclick="saveProfileSettings()">Save profile</button>
+          <button id="profileSaveBtn" class="profile-btn primary" onclick="saveProfileSettings()">Save profile</button><span id="profileSaveStatus" style="display:inline-flex;align-items:center;min-height:40px;padding:0 4px;font-size:12px;color:var(--gold);"></span>
           <button class="profile-btn" onclick="resetProfileBackground()">Reset background</button>
         </div>
       </div>
@@ -1937,6 +1937,7 @@ const supabaseClient = window.supabase.createClient(
 );
 const SCAN_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/scan-card`;
 let currentUser=null;
+let currentProfileRecord=null;
 let currentProfileSettings={display_name:'',collector_name:'',background_mode:'default',background_url:'',background_opacity:0.18,avatar_url:'',avatar_zoom:1,avatar_pos_x:50,avatar_pos_y:50};
 
 async function refreshCurrentUser(){
@@ -2001,18 +2002,25 @@ function normalizeAvatarOffset(value){
 }
 function getProfileSettingsFromUser(user){
   const meta=user?.user_metadata || {};
+  const profile=(user && currentUser && user.id===currentUser.id && currentProfileRecord) ? currentProfileRecord : {};
   return {
-    display_name: meta.display_name || '',
-    collector_name: meta.collector_name || '',
-    background_mode: meta.background_mode || 'default',
-    background_url: meta.background_url || '',
-    background_opacity: Number.isFinite(Number(meta.background_opacity)) ? Number(meta.background_opacity) : 0.18,
-    avatar_url: meta.avatar_url || '',
-    avatar_zoom: Number.isFinite(Number(meta.avatar_zoom)) ? Number(meta.avatar_zoom) : 1,
-    avatar_pos_x: normalizeAvatarOffset(meta.avatar_pos_x),
-    avatar_pos_y: normalizeAvatarOffset(meta.avatar_pos_y),
-    public_binder: typeof meta.public_binder === 'boolean' ? meta.public_binder : (tradeProfile.publicBinder ?? false),
-    public_trades: typeof meta.public_trades === 'boolean' ? meta.public_trades : (tradeProfile.publicTrades ?? true)
+    display_name: profile.display_name ?? meta.display_name ?? currentProfileSettings.display_name ?? '',
+    collector_name: profile.collector_name ?? meta.collector_name ?? currentProfileSettings.collector_name ?? '',
+    background_mode: profile.background_mode ?? meta.background_mode ?? currentProfileSettings.background_mode ?? 'default',
+    background_url: profile.background_url ?? meta.background_url ?? currentProfileSettings.background_url ?? '',
+    background_opacity: Number.isFinite(Number(profile.background_opacity)) ? Number(profile.background_opacity)
+      : (Number.isFinite(Number(meta.background_opacity)) ? Number(meta.background_opacity)
+      : (Number.isFinite(Number(currentProfileSettings.background_opacity)) ? Number(currentProfileSettings.background_opacity) : 0.18)),
+    avatar_url: profile.avatar_url ?? meta.avatar_url ?? currentProfileSettings.avatar_url ?? '',
+    avatar_zoom: Number.isFinite(Number(profile.avatar_zoom)) ? Number(profile.avatar_zoom)
+      : (Number.isFinite(Number(meta.avatar_zoom)) ? Number(meta.avatar_zoom)
+      : (Number.isFinite(Number(currentProfileSettings.avatar_zoom)) ? Number(currentProfileSettings.avatar_zoom) : 1)),
+    avatar_pos_x: normalizeAvatarOffset(profile.avatar_pos_x ?? meta.avatar_pos_x ?? currentProfileSettings.avatar_pos_x),
+    avatar_pos_y: normalizeAvatarOffset(profile.avatar_pos_y ?? meta.avatar_pos_y ?? currentProfileSettings.avatar_pos_y),
+    public_binder: typeof profile.public_binder === 'boolean' ? profile.public_binder
+      : (typeof meta.public_binder === 'boolean' ? meta.public_binder : (tradeProfile.publicBinder ?? false)),
+    public_trades: typeof profile.public_trades === 'boolean' ? profile.public_trades
+      : (typeof meta.public_trades === 'boolean' ? meta.public_trades : (tradeProfile.publicTrades ?? true))
   };
 }
 function getResolvedBackgroundImage(settings){
@@ -2027,7 +2035,7 @@ function getStorageBucketName(){
   return 'profile-backgrounds';
 }
 function getAvatarUrl(){
-  return getProfileSettingsFromUser(currentUser || {}).avatar_url || localStorage.getItem('pb_avatar_local') || '';
+  return currentProfileSettings.avatar_url || currentProfileRecord?.avatar_url || getProfileSettingsFromUser(currentUser || {}).avatar_url || localStorage.getItem('pb_avatar_local') || '';
 }
 function getLocalAvatarCrop(){
   try{
@@ -2244,7 +2252,7 @@ function fillProfileForm(user){
   currentProfileSettings.avatar_zoom=localCrop?.avatar_zoom ?? s.avatar_zoom ?? 1;
   currentProfileSettings.avatar_pos_x=localCrop?.avatar_pos_x ?? s.avatar_pos_x ?? 0;
   currentProfileSettings.avatar_pos_y=localCrop?.avatar_pos_y ?? s.avatar_pos_y ?? 0;
-  setAvatarPreview(document.getElementById('profileAvatarPreview'), s.avatar_url, getAvatarLabel());
+  setAvatarPreview(document.getElementById('profileAvatarPreview'), getAvatarUrl(), getAvatarLabel());
   syncAvatarCropControls(getAvatarCropSettings());
   onProfileBackgroundInput();
   updateHeaderUserUI();
@@ -2303,8 +2311,11 @@ async function uploadBackgroundImage(){
       const url=document.getElementById('profileBackgroundUrl');
       if(mode) mode.value='custom';
       if(url) url.value=publicUrl;
+      currentProfileSettings.background_mode='custom';
+      currentProfileSettings.background_url=publicUrl;
       onProfileBackgroundInput();
       updateAuthStatus('Background uploaded. Click Save profile to keep it.');
+      setProfileSaveStatus('Background ready to save.');
       if(input) input.value='';
       return;
     }
@@ -2319,8 +2330,11 @@ async function uploadBackgroundImage(){
     if(mode) mode.value='custom';
     if(url) url.value=dataUrl;
     localStorage.setItem('pb_bg_local',dataUrl);
+    currentProfileSettings.background_mode='custom';
+    currentProfileSettings.background_url=dataUrl;
     onProfileBackgroundInput();
     updateAuthStatus('Background set locally. It will be applied on this device.');
+    setProfileSaveStatus('Background ready to save.');
     if(input) input.value='';
   }catch(e){updateAuthStatus('Could not read the image file.');}
 }
@@ -2335,26 +2349,14 @@ async function uploadAvatarImage(){
   if(supabaseClient && currentUser){
     const publicUrl=await uploadFileToStorage(file,'avatar');
     if(publicUrl){
-      const existing=getProfileSettingsFromUser(currentUser);
-      const { error } = await supabaseClient.auth.updateUser({
-        data:{
-          display_name: existing.display_name || '',
-          collector_name: existing.collector_name || '',
-          background_mode: existing.background_mode || 'default',
-          background_url: existing.background_url || '',
-          background_opacity: existing.background_opacity ?? 0.18,
-          avatar_url: publicUrl,
-          avatar_zoom: currentProfileSettings.avatar_zoom ?? 1,
-          avatar_pos_x: currentProfileSettings.avatar_pos_x ?? 0,
-          avatar_pos_y: currentProfileSettings.avatar_pos_y ?? 0
-        }
-      });
-      if(error){ updateAuthStatus(error.message); return; }
-      await refreshCurrentUser();
+      currentProfileSettings.avatar_url=publicUrl;
+      currentProfileRecord={...(currentProfileRecord||{}), avatar_url:publicUrl};
+      localStorage.setItem('pb_avatar_local', publicUrl);
       fillProfileForm(currentUser);
       renderAvatarCrop(getAvatarCropSettings());
       updateHeaderUserUI();
       updateAuthStatus('Avatar uploaded.');
+      setProfileSaveStatus('Avatar ready to save.');
       if(input) input.value='';
       return;
     }
@@ -2377,44 +2379,68 @@ async function uploadAvatarImage(){
     const avatarBtn=document.getElementById('avatarBtn');
     if(avatarBtn) setAvatarPreview(avatarBtn,dataUrl,getAvatarLabel());
     updateAuthStatus('Avatar set locally on this device.');
+    setProfileSaveStatus('Avatar ready to save.');
     if(input) input.value='';
   }catch(e){updateAuthStatus('Could not read the image file.');}
 }
 
 async function saveProfileSettings(){
-  if(!supabaseClient || !currentUser){ updateAuthStatus('Log in first to save your profile.'); return; }
-  const existing=getProfileSettingsFromUser(currentUser);
-  const updates={
-    data:{
+  if(!supabaseClient || !currentUser){ updateAuthStatus('Log in first to save your profile.'); setProfileSaveStatus('Log in first.', true); return; }
+  setProfileSaveButtonState(true);
+  try{
+    const existing=getProfileSettingsFromUser(currentUser);
+    const avatarUrl=currentProfileSettings.avatar_url || getAvatarUrl() || existing.avatar_url || '';
+    const backgroundMode=document.getElementById('profileBackgroundMode')?.value || 'default';
+    const backgroundUrl=document.getElementById('profileBackgroundUrl')?.value.trim() || '';
+    const profileUpdates={
       display_name: document.getElementById('profileDisplayName')?.value.trim() || '',
       collector_name: document.getElementById('profileCollectorName')?.value.trim() || '',
-      background_mode: document.getElementById('profileBackgroundMode')?.value || 'default',
-      background_url: document.getElementById('profileBackgroundUrl')?.value.trim() || '',
+      background_mode: backgroundMode,
+      background_url: backgroundUrl,
       background_opacity: Number(document.getElementById('profileBgOpacity')?.value || 0.18),
-      avatar_url: existing.avatar_url || '',
+      avatar_url: avatarUrl,
       avatar_zoom: Number(document.getElementById('profileAvatarZoom')?.value || currentProfileSettings.avatar_zoom || 1),
       avatar_pos_x: Number.isFinite(Number(currentProfileSettings.avatar_pos_x)) ? Number(currentProfileSettings.avatar_pos_x) : 0,
       avatar_pos_y: Number.isFinite(Number(currentProfileSettings.avatar_pos_y)) ? Number(currentProfileSettings.avatar_pos_y) : 0,
       public_binder: !!document.getElementById('profilePublicBinder')?.checked,
       public_trades: !!document.getElementById('profilePublicTrades')?.checked
+    };
+    const newPassword=document.getElementById('profileNewPassword')?.value.trim() || '';
+    if(newPassword){
+      const { error:pwError } = await supabaseClient.auth.updateUser({ password:newPassword });
+      if(pwError) throw pwError;
     }
-  };
-  const newPassword=document.getElementById('profileNewPassword')?.value.trim() || '';
-  if(newPassword) updates.password=newPassword;
-  const { error } = await supabaseClient.auth.updateUser(updates);
-  if(error){ updateAuthStatus(error.message); return; }
-  await refreshCurrentUser();
-  fillProfileForm(currentUser);
-  applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
-  renderAvatarCrop(getAvatarCropSettings());
-  const pw=document.getElementById('profileNewPassword'); if(pw) pw.value='';
-  localStorage.setItem('pb_avatar_crop_local', JSON.stringify({avatar_zoom: updates.data.avatar_zoom, avatar_pos_x: updates.data.avatar_pos_x, avatar_pos_y: updates.data.avatar_pos_y}));
-  tradeProfile.publicBinder=!!updates.data.public_binder;
-  tradeProfile.publicTrades=!!updates.data.public_trades;
-  localStorage.setItem('pb_tradeProfile', JSON.stringify(tradeProfile));
-  renderAvatarCrop(updates.data);
-  renderTradeHub();
-  updateAuthStatus('Profile saved.');
+    await saveProfileRecordToSupabase(profileUpdates);
+    currentProfileSettings={...currentProfileSettings, ...profileUpdates};
+    if(backgroundMode==='custom' && backgroundUrl){
+      localStorage.setItem('pb_bg_local', backgroundUrl);
+    }else if(backgroundMode!=='custom'){
+      localStorage.removeItem('pb_bg_local');
+    }
+    if(avatarUrl){
+      localStorage.setItem('pb_avatar_local', avatarUrl);
+    }else{
+      localStorage.removeItem('pb_avatar_local');
+    }
+    localStorage.setItem('pb_avatar_crop_local', JSON.stringify({avatar_zoom: profileUpdates.avatar_zoom, avatar_pos_x: profileUpdates.avatar_pos_x, avatar_pos_y: profileUpdates.avatar_pos_y}));
+    tradeProfile.publicBinder=!!profileUpdates.public_binder;
+    tradeProfile.publicTrades=!!profileUpdates.public_trades;
+    localStorage.setItem('pb_tradeProfile', JSON.stringify(tradeProfile));
+    fillProfileForm(currentUser);
+    applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+    renderAvatarCrop(getAvatarCropSettings());
+    const pw=document.getElementById('profileNewPassword'); if(pw) pw.value='';
+    renderTradeHub();
+    await syncTradeListingVisibility();
+    updateHeaderUserUI();
+    updateAuthStatus('Profile saved.');
+    setProfileSaveStatus('Profile saved.');
+  }catch(error){
+    updateAuthStatus(error.message || 'Could not save profile.');
+    setProfileSaveStatus(error.message || 'Could not save profile.', true);
+  } finally {
+    setProfileSaveButtonState(false);
+  }
 }
 function resetProfileBackground(){
   const mode=document.getElementById('profileBackgroundMode');
@@ -2528,6 +2554,23 @@ function updateAuthStatus(message){
   const el=document.getElementById('authStatus');
   if(el) el.textContent=message;
 }
+function setProfileSaveStatus(message,isError=false){
+  const el=document.getElementById('profileSaveStatus');
+  if(!el) return;
+  el.textContent=message || '';
+  el.style.color=isError ? '#ff9c9c' : 'var(--gold)';
+  if(el._clearTimer) clearTimeout(el._clearTimer);
+  if(message){
+    el._clearTimer=setTimeout(()=>{ el.textContent=''; }, 2400);
+  }
+}
+function setProfileSaveButtonState(isSaving){
+  const btn=document.getElementById('profileSaveBtn');
+  if(!btn) return;
+  btn.disabled=!!isSaving;
+  btn.textContent=isSaving ? 'Saving…' : 'Save profile';
+  btn.style.opacity=isSaving ? '0.75' : '1';
+}
 
 function getBinderPayload(){
   return {
@@ -2536,7 +2579,7 @@ function getBinderPayload(){
     owned_cards: ownedCards,
     merged_sets: mergedSets,
     decks: savedDecks,
-    trade_cards: tradeCards,
+    trade_cards: [],
     trade_profile: tradeProfile,
     card_finishes: cardFinishes,
     highlights: highlightedCards,
@@ -2548,10 +2591,26 @@ function getBinderPayload(){
 
 async function ensureProfile(user){
   if(!supabaseClient || !user) return;
-  await supabaseClient.from('profiles').upsert({
+  const { error } = await supabaseClient.from('profiles').upsert({
     id:user.id,
     email:user.email
   });
+  if(error) console.error('Failed to ensure profile:', error);
+  currentProfileRecord={...(currentProfileRecord||{}), ...(user.user_metadata||{})};
+}
+
+async function loadProfileRecordFromSupabase(){
+  currentProfileRecord={...(currentUser?.user_metadata||{})};
+  return currentProfileRecord;
+}
+
+async function saveProfileRecordToSupabase(profileData){
+  if(!supabaseClient || !currentUser) return null;
+  const { error } = await supabaseClient.auth.updateUser({ data: profileData });
+  if(error) throw error;
+  await refreshCurrentUser();
+  currentProfileRecord={...(currentUser?.user_metadata||{}), ...profileData};
+  return currentProfileRecord;
 }
 
 async function saveBinderToSupabase(){
@@ -2583,8 +2642,8 @@ async function loadBinderFromSupabase(){
     ownedCards=data.owned_cards || {};
     mergedSets=data.merged_sets || [];
     savedDecks=data.decks || [];
-    tradeCards=data.trade_cards || tradeCards || [];
-    tradeProfile=data.trade_profile || tradeProfile || {publicBinder:false,publicTrades:true};
+    tradeCards=[];
+    tradeProfile={...(tradeProfile || {publicBinder:false,publicTrades:true}), ...(data.trade_profile || {})};
     cardFinishes=data.card_finishes || {};
     highlightedCards=data.highlights || [];
     chaseCards=data.chase_cards || [];
@@ -2641,10 +2700,12 @@ async function initAuth(){
   if(currentUser){
     updateAuthStatus(`Logged in as ${currentUser.email}`);
     await ensureProfile(currentUser);
+    await loadProfileRecordFromSupabase();
     fillProfileForm(currentUser);
     applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
     await loadBinderFromSupabase();
   } else {
+    currentProfileRecord=null;
     updateAuthStatus('Not logged in');
     fillProfileForm(null);
     applyBackgroundSettings(getProfileSettingsFromUser(null));
@@ -2656,10 +2717,12 @@ async function initAuth(){
     if(currentUser){
       updateAuthStatus(`Logged in as ${currentUser.email}`);
       await ensureProfile(currentUser);
+      await loadProfileRecordFromSupabase();
       fillProfileForm(currentUser);
       applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
       await loadBinderFromSupabase();
     } else {
+      currentProfileRecord=null;
       updateAuthStatus('Not logged in');
       fillProfileForm(null);
       applyBackgroundSettings(getProfileSettingsFromUser(null));
@@ -2994,6 +3057,8 @@ async function loadTradeHubFromSupabase(){
     persistTradeOutgoingOffers();
   }catch(error){
     console.error('Failed to load trade hub from Supabase:', error);
+    updateAuthStatus('Trade Hub could not refresh from cloud. Showing saved cards.');
+    tradeOwnListings=(tradeCards||[]).map(card=>({id:null,trader:'You',traderId:currentUser?.id || '',status:'live',card:{...card}}));
   }
   renderTradeHub();
 }
@@ -3125,40 +3190,67 @@ async function toggleActiveCardTrade(){
   const snap=buildTradeSnapshot(activeCard);
   const exists=tradeCards.findIndex(x=>x.key===snap.key);
   try{
-    if(exists!==-1) await removeTradeListingByKey(snap.key);
-    else await upsertTradeListingSnapshot(snap);
+    if(exists!==-1){
+      tradeCards=tradeCards.filter(x=>x.key!==snap.key);
+      await removeTradeListingByKey(snap.key);
+      updateAuthStatus('Trade listing removed.');
+    }else{
+      tradeCards=[...tradeCards.filter(x=>x.key!==snap.key), snap];
+      await upsertTradeListingSnapshot(snap);
+      updateAuthStatus('Trade listing saved.');
+    }
+    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     await loadTradeHubFromSupabase();
-    save();
   }catch(error){
     console.error('Failed to update trade listing:', error);
     alert(error.message || 'Could not update the trade listing.');
   }
   syncTradeButton(activeCard);
+  renderTradeHub();
   renderBinderBook();
 }
 async function removeTradeCard(key){
   try{
+    tradeCards=tradeCards.filter(x=>x.key!==key);
+    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     await removeTradeListingByKey(key);
     await loadTradeHubFromSupabase();
-    save();
+    updateAuthStatus('Trade listing removed.');
   }catch(error){
     console.error('Failed to remove trade card:', error);
     alert(error.message || 'Could not remove that trade listing.');
   }
   if(activeCard) syncTradeButton(activeCard);
+  renderTradeHub();
   renderBinderBook();
 }
-function setTradePublicBinder(val){
-  tradeProfile.publicBinder=!!val;
+async function persistTradeVisibilitySettings(){
   persistTradeProfile();
+  localStorage.setItem('pb_tradeProfile', JSON.stringify(tradeProfile));
+  if(currentUser && supabaseClient){
+    currentProfileSettings.public_binder=!!tradeProfile.publicBinder;
+    currentProfileSettings.public_trades=!!tradeProfile.publicTrades;
+    try{
+      await saveProfileRecordToSupabase({
+        public_binder: !!tradeProfile.publicBinder,
+        public_trades: !!tradeProfile.publicTrades
+      });
+    }catch(error){
+      console.error('Failed to save trade visibility settings:', error);
+    }
+  }
+}
+async function setTradePublicBinder(val){
+  tradeProfile.publicBinder=!!val;
   const el=document.getElementById('profilePublicBinder'); if(el) el.checked=tradeProfile.publicBinder;
+  await persistTradeVisibilitySettings();
   save();
   renderTradeHub();
 }
 async function setTradePublicTrades(val){
   tradeProfile.publicTrades=!!val;
-  persistTradeProfile();
   const el=document.getElementById('profilePublicTrades'); if(el) el.checked=tradeProfile.publicTrades;
+  await persistTradeVisibilitySettings();
   save();
   await syncTradeListingVisibility();
   await loadTradeHubFromSupabase();
