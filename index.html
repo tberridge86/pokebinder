@@ -2588,7 +2588,6 @@ function getBinderPayload(){
     owned_cards: ownedCards,
     merged_sets: mergedSets,
     decks: savedDecks,
-    trade_cards: [],
     trade_profile: tradeProfile,
     card_finishes: cardFinishes,
     highlights: highlightedCards,
@@ -3088,7 +3087,6 @@ async function loadTradeHubFromSupabase(){
     tradeMarketplaceListings=(marketRes.data||[]).map(mapTradeListingRow);
     tradeIncomingOffers=(incomingRes.data||[]).map(row=>mapTradeOfferRow(row,'incoming'));
     tradeOutgoingOffers=(outgoingRes.data||[]).map(row=>mapTradeOfferRow(row,'outgoing'));
-    tradeCards=tradeOwnListings.map(x=>({ ...x.card }));
     persistTradeIncomingOffers();
     persistTradeOutgoingOffers();
   }catch(error){
@@ -5808,7 +5806,7 @@ loadExchangeRates().finally(()=>loadAllSets());
 initAuth();
 
 // Background image
-applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+applyBackgroundSettings(currentProfileSettings || getProfileSettingsFromUser(currentUser));
 
 // PWA
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
