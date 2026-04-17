@@ -1939,6 +1939,9 @@ const SCAN_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/scan-card`;
 let currentUser=null;
 let currentProfileRecord=null;
 let currentProfileSettings={display_name:'',collector_name:'',background_mode:'default',background_url:'',background_opacity:0.18,avatar_url:'',avatar_zoom:1,avatar_pos_x:50,avatar_pos_y:50};
+let suppressAuthStateReload=false;
+let binderSaveQueue=Promise.resolve();
+let lastBinderSaveAt=0;
 
 async function refreshCurrentUser(){
   if(!supabaseClient) return null;
@@ -2606,20 +2609,36 @@ async function loadProfileRecordFromSupabase(){
 
 async function saveProfileRecordToSupabase(profileData){
   if(!supabaseClient || !currentUser) return null;
-  const { error } = await supabaseClient.auth.updateUser({ data: profileData });
-  if(error) throw error;
-  await refreshCurrentUser();
-  currentProfileRecord={...(currentUser?.user_metadata||{}), ...profileData};
-  return currentProfileRecord;
+  suppressAuthStateReload=true;
+  try{
+    const { data, error } = await supabaseClient.auth.updateUser({ data: profileData });
+    if(error) throw error;
+    const mergedUser = data?.user || currentUser;
+    currentUser = mergedUser;
+    currentProfileRecord={...(currentProfileRecord||{}), ...(mergedUser?.user_metadata||{}), ...profileData};
+    return currentProfileRecord;
+  } finally {
+    suppressAuthStateReload=false;
+  }
 }
 
 async function saveBinderToSupabase(){
   if(!supabaseClient || !currentUser) return;
   const payload=getBinderPayload();
-  const { error } = await supabaseClient
-    .from('binders')
-    .upsert(payload,{ onConflict:'user_id' });
-  if(error) console.error('Failed to save binder:', error);
+  const runSave = async () => {
+    const { error } = await supabaseClient
+      .from('binders')
+      .upsert(payload,{ onConflict:'user_id' });
+    if(error){
+      console.error('Failed to save binder:', error);
+      updateAuthStatus('Could not save collection to cloud.');
+      throw error;
+    }
+    lastBinderSaveAt=Date.now();
+    updateAuthStatus('Collection saved.');
+  };
+  binderSaveQueue = binderSaveQueue.catch(()=>{}).then(runSave);
+  return binderSaveQueue;
 }
 
 async function loadBinderFromSupabase(){
@@ -2713,6 +2732,12 @@ async function initAuth(){
 
   supabaseClient.auth.onAuthStateChange(async (_event, session) => {
     currentUser = session?.user ?? null;
+    if(suppressAuthStateReload){
+      if(currentUser){
+        currentProfileRecord={...(currentProfileRecord||{}), ...(currentUser.user_metadata||{})};
+      }
+      return;
+    }
     if(currentUser) await refreshCurrentUser();
     if(currentUser){
       updateAuthStatus(`Logged in as ${currentUser.email}`);
@@ -3189,20 +3214,24 @@ async function toggleActiveCardTrade(){
   if(!currentUser){ alert('Sign in first so your trade listings can be saved.'); return; }
   const snap=buildTradeSnapshot(activeCard);
   const exists=tradeCards.findIndex(x=>x.key===snap.key);
+  const previousTradeCards=[...(tradeCards||[])];
   try{
     if(exists!==-1){
-      tradeCards=tradeCards.filter(x=>x.key!==snap.key);
       await removeTradeListingByKey(snap.key);
+      tradeCards=tradeCards.filter(x=>x.key!==snap.key);
       updateAuthStatus('Trade listing removed.');
     }else{
-      tradeCards=[...tradeCards.filter(x=>x.key!==snap.key), snap];
       await upsertTradeListingSnapshot(snap);
+      tradeCards=[...tradeCards.filter(x=>x.key!==snap.key), snap];
       updateAuthStatus('Trade listing saved.');
     }
     localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     await loadTradeHubFromSupabase();
   }catch(error){
+    tradeCards=previousTradeCards;
+    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     console.error('Failed to update trade listing:', error);
+    updateAuthStatus(error.message || 'Could not update the trade listing.');
     alert(error.message || 'Could not update the trade listing.');
   }
   syncTradeButton(activeCard);
@@ -3210,14 +3239,18 @@ async function toggleActiveCardTrade(){
   renderBinderBook();
 }
 async function removeTradeCard(key){
+  const previousTradeCards=[...(tradeCards||[])];
   try{
+    await removeTradeListingByKey(key);
     tradeCards=tradeCards.filter(x=>x.key!==key);
     localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
-    await removeTradeListingByKey(key);
     await loadTradeHubFromSupabase();
     updateAuthStatus('Trade listing removed.');
   }catch(error){
+    tradeCards=previousTradeCards;
+    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     console.error('Failed to remove trade card:', error);
+    updateAuthStatus(error.message || 'Could not remove that trade listing.');
     alert(error.message || 'Could not remove that trade listing.');
   }
   if(activeCard) syncTradeButton(activeCard);
