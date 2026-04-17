@@ -2628,6 +2628,7 @@ async function saveProfileRecordToSupabase(profileData){
 }
 
 async function saveBinderToSupabase(){
+  console.log('saveBinderToSupabase fired', getBinderPayload());
   if(!supabaseClient || !currentUser) return;
   const payload=getBinderPayload();
   const runSave = async () => {
@@ -4283,6 +4284,7 @@ function getFilteredSortedCards(){
 }
 
 function toggleCard(cardId,setId){
+  console.log('toggleCard fired', cardId, setId);
   const sid=setId||currentSetId;
   if(!ownedCards[sid])ownedCards[sid]=[];
   const arr=ownedCards[sid];
