@@ -1960,7 +1960,7 @@ let savedDecks=JSON.parse(localStorage.getItem('pb_decks')||'[]');
 let cardFinishes=JSON.parse(localStorage.getItem('pb_cardFinishes')||'{}');
 let highlightedCards=JSON.parse(localStorage.getItem('pb_highlights')||'[]'); // [{id,name,setId,setName,img}]
 let chaseCards=JSON.parse(localStorage.getItem('pb_chaseCards')||'[]'); // [{id,name,setId,setName,img}]
-let tradeCards=JSON.parse(localStorage.getItem('pb_tradeCards')||'[]');
+let tradeCards=[];
 let tradeProfile=JSON.parse(localStorage.getItem('pb_tradeProfile')||'{"publicBinder":false,"publicTrades":true}');
 let tradeOfferResponses=JSON.parse(localStorage.getItem('pb_tradeOfferResponses')||'{}');
 let tradeIncomingOffers=JSON.parse(localStorage.getItem('pb_tradeIncomingOffers')||'[]');
@@ -2354,9 +2354,10 @@ async function uploadAvatarImage(){
     if(publicUrl){
       currentProfileSettings.avatar_url=publicUrl;
       currentProfileRecord={...(currentProfileRecord||{}), avatar_url:publicUrl};
-      localStorage.setItem('pb_avatar_local', publicUrl);
-      fillProfileForm(currentUser);
-      renderAvatarCrop(getAvatarCropSettings());
+      currentProfileSettings={...currentProfileSettings, avatar_url:publicUrl};
+      setAvatarPreview(document.getElementById('profileAvatarPreview'), publicUrl, '');
+      renderAvatarCrop(currentProfileSettings);
+      syncAvatarCropControls(currentProfileSettings);
       updateHeaderUserUI();
       updateAuthStatus('Avatar uploaded.');
       setProfileSaveStatus('Avatar ready to save.');
@@ -2414,6 +2415,7 @@ async function saveProfileSettings(){
       if(pwError) throw pwError;
     }
     await saveProfileRecordToSupabase(profileUpdates);
+    currentProfileRecord={...(currentProfileRecord||{}), ...profileUpdates};
     currentProfileSettings={...currentProfileSettings, ...profileUpdates};
     if(backgroundMode==='custom' && backgroundUrl){
       localStorage.setItem('pb_bg_local', backgroundUrl);
@@ -2430,11 +2432,16 @@ async function saveProfileSettings(){
     tradeProfile.publicTrades=!!profileUpdates.public_trades;
     localStorage.setItem('pb_tradeProfile', JSON.stringify(tradeProfile));
     fillProfileForm(currentUser);
-    applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
-    renderAvatarCrop(getAvatarCropSettings());
+    applyBackgroundSettings(currentProfileSettings);
+    renderAvatarCrop(currentProfileSettings);
+    syncAvatarCropControls(currentProfileSettings);
+    const preview=document.getElementById('profileAvatarPreview');
+    if(preview) setAvatarPreview(preview, currentProfileSettings.avatar_url || '', '');
+    const avatarBtn=document.getElementById('avatarBtn');
+    if(avatarBtn) setAvatarPreview(avatarBtn, currentProfileSettings.avatar_url || '', getAvatarLabel());
     const pw=document.getElementById('profileNewPassword'); if(pw) pw.value='';
-    renderTradeHub();
     await syncTradeListingVisibility();
+    await loadTradeHubFromSupabase();
     updateHeaderUserUI();
     updateAuthStatus('Profile saved.');
     setProfileSaveStatus('Profile saved.');
@@ -2547,7 +2554,6 @@ function save(){
   localStorage.setItem('pb_cardFinishes',JSON.stringify(cardFinishes));
   localStorage.setItem('pb_highlights',JSON.stringify(highlightedCards));
   localStorage.setItem('pb_chaseCards',JSON.stringify(chaseCards));
-  localStorage.setItem('pb_tradeCards',JSON.stringify(tradeCards));
   localStorage.setItem('pb_tradeProfile',JSON.stringify(tradeProfile));
   localStorage.setItem('pb_layout',binderLayout);
   saveBinderToSupabase();
@@ -2721,7 +2727,7 @@ async function initAuth(){
     await ensureProfile(currentUser);
     await loadProfileRecordFromSupabase();
     fillProfileForm(currentUser);
-    applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+    applyBackgroundSettings(currentProfileSettings);
     await loadBinderFromSupabase();
   } else {
     currentProfileRecord=null;
@@ -2744,7 +2750,7 @@ async function initAuth(){
       await ensureProfile(currentUser);
       await loadProfileRecordFromSupabase();
       fillProfileForm(currentUser);
-      applyBackgroundSettings(getProfileSettingsFromUser(currentUser));
+      applyBackgroundSettings(currentProfileSettings);
       await loadBinderFromSupabase();
     } else {
       currentProfileRecord=null;
@@ -3039,6 +3045,11 @@ function mapTradeOfferRow(row, kind='incoming'){
 }
 async function loadTradeHubFromSupabase(){
   if(!supabaseClient || !currentUser){
+    tradeOwnListings=[];
+    tradeMarketplaceListings=[];
+    tradeIncomingOffers=[];
+    tradeOutgoingOffers=[];
+    tradeCards=[];
     renderTradeHub();
     return;
   }
@@ -3082,8 +3093,12 @@ async function loadTradeHubFromSupabase(){
     persistTradeOutgoingOffers();
   }catch(error){
     console.error('Failed to load trade hub from Supabase:', error);
-    updateAuthStatus('Trade Hub could not refresh from cloud. Showing saved cards.');
-    tradeOwnListings=(tradeCards||[]).map(card=>({id:null,trader:'You',traderId:currentUser?.id || '',status:'live',card:{...card}}));
+    updateAuthStatus('Trade Hub could not refresh from cloud.');
+    tradeOwnListings=[];
+    tradeMarketplaceListings=[];
+    tradeIncomingOffers=[];
+    tradeOutgoingOffers=[];
+    tradeCards=[];
   }
   renderTradeHub();
 }
@@ -3213,23 +3228,17 @@ async function toggleActiveCardTrade(){
   if(!activeCard || !isOwned(activeCard)) return;
   if(!currentUser){ alert('Sign in first so your trade listings can be saved.'); return; }
   const snap=buildTradeSnapshot(activeCard);
-  const exists=tradeCards.findIndex(x=>x.key===snap.key);
-  const previousTradeCards=[...(tradeCards||[])];
+  const exists=tradeCards.some(x=>x.key===snap.key);
   try{
-    if(exists!==-1){
+    if(exists){
       await removeTradeListingByKey(snap.key);
-      tradeCards=tradeCards.filter(x=>x.key!==snap.key);
       updateAuthStatus('Trade listing removed.');
     }else{
       await upsertTradeListingSnapshot(snap);
-      tradeCards=[...tradeCards.filter(x=>x.key!==snap.key), snap];
       updateAuthStatus('Trade listing saved.');
     }
-    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     await loadTradeHubFromSupabase();
   }catch(error){
-    tradeCards=previousTradeCards;
-    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     console.error('Failed to update trade listing:', error);
     updateAuthStatus(error.message || 'Could not update the trade listing.');
     alert(error.message || 'Could not update the trade listing.');
@@ -3239,16 +3248,11 @@ async function toggleActiveCardTrade(){
   renderBinderBook();
 }
 async function removeTradeCard(key){
-  const previousTradeCards=[...(tradeCards||[])];
   try{
     await removeTradeListingByKey(key);
-    tradeCards=tradeCards.filter(x=>x.key!==key);
-    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     await loadTradeHubFromSupabase();
     updateAuthStatus('Trade listing removed.');
   }catch(error){
-    tradeCards=previousTradeCards;
-    localStorage.setItem('pb_tradeCards', JSON.stringify(tradeCards));
     console.error('Failed to remove trade card:', error);
     updateAuthStatus(error.message || 'Could not remove that trade listing.');
     alert(error.message || 'Could not remove that trade listing.');
