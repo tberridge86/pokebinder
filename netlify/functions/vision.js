@@ -1,30 +1,25 @@
 exports.handler = async (event) => {
-  // Only allow POST
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
-
-  const apiKey = process.env.GOOGLE_VISION_API_KEY;
-  if (!apiKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'API key not configured on server.' }) };
-  }
-
-  let body;
   try {
-    body = JSON.parse(event.body);
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body.' }) };
-  }
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: { message: 'Method not allowed' } })
+      };
+    }
 
-  // Allow TEXT_DETECTION and WEB_DETECTION only
-  const features = body?.requests?.[0]?.features;
-  const allowedTypes = ['TEXT_DETECTION', 'WEB_DETECTION'];
-  if (!features || !features.every(f => allowedTypes.includes(f.type))) {
-    return { statusCode: 403, body: JSON.stringify({ error: 'Only TEXT_DETECTION and WEB_DETECTION are permitted.' }) };
-  }
+    const apiKey = process.env.GOOGLE_VISION_API_KEY;
+    if (!apiKey) {
+      return {
+        statusCode: 500,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: { message: 'Missing GOOGLE_VISION_API_KEY' } })
+      };
+    }
 
-  try {
-    const response = await fetch(
+    const body = JSON.parse(event.body || '{}');
+
+    const googleResponse = await fetch(
       `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
       {
         method: 'POST',
@@ -33,17 +28,20 @@ exports.handler = async (event) => {
       }
     );
 
-    const data = await response.json();
+    const data = await googleResponse.json();
 
     return {
-      statusCode: response.status,
+      statusCode: googleResponse.status,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     };
-  } catch (err) {
+  } catch (error) {
     return {
-      statusCode: 502,
-      body: JSON.stringify({ error: `Proxy error: ${err.message}` })
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: { message: error.message || 'Unknown server error' }
+      })
     };
   }
 };
