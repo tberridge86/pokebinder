@@ -1438,6 +1438,40 @@ header{height:auto;min-height:72px;padding:12px 28px;}
   .hstat{text-align:left;}
   .hstat-div{display:none;}
 }
+.scan-status::before{
+  content:'';
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:currentColor;
+  opacity:0.75;
+  flex-shrink:0;
+}
+
+.scan-status.thinking::before{
+  animation:scanPulse 1s ease-in-out infinite;
+}
+
+.scan-busy .scan-frame{
+  box-shadow:
+    0 0 0 9999px rgba(0,0,0,0.45),
+    0 0 0 2px rgba(255,215,0,0.2),
+    0 0 18px rgba(255,215,0,0.35);
+}
+
+.scan-result.visible{
+  animation:scanResultIn 0.18s ease-out;
+}
+
+@keyframes scanPulse{
+  0%,100%{ transform:scale(1); opacity:0.45; }
+  50%{ transform:scale(1.25); opacity:1; }
+}
+
+@keyframes scanResultIn{
+  from{ opacity:0; transform:translateY(10px); }
+  to{ opacity:1; transform:translateY(0); }
+}
 
 </style>
 </head>
@@ -5616,6 +5650,8 @@ function setScanStatus(msg, type=''){
 
 let autoScanLoop = null;
 let autoScanCooldown = false;
+let scanInFlight = false;
+let lastScanAt = 0;
 
 async function startCamera(){
   try{
@@ -5638,18 +5674,26 @@ async function startCamera(){
 
 function startAutoScanLoop(){
   stopAutoScanLoop();
-  autoScanLoop = setInterval(async ()=>{
-    if(autoScanCooldown) return;
-    const video = document.getElementById('scanVideo');
-    if(!video || !video.srcObject || video.readyState < 2) return;
-    if(!looksLikeCardIsVisible(video)) return;
-    autoScanCooldown = true;
-    captureAndIdentify();
-    // Wait 6 seconds before trying again to avoid spamming API
-    setTimeout(()=>{ autoScanCooldown = false; }, 6000);
-  }, 2500);
-}
 
+  autoScanLoop = setInterval(async ()=>{
+    if (autoScanCooldown || scanInFlight) return;
+
+    const video = document.getElementById('scanVideo');
+    if (!video || !video.srcObject || video.readyState < 2) return;
+    if (!looksLikeCardIsVisible(video)) return;
+
+    const now = Date.now();
+    if (now - lastScanAt < 2500) return;
+
+    autoScanCooldown = true;
+    lastScanAt = now;
+
+    setScanStatus('Card detected — analysing…', 'thinking');
+    captureAndIdentify().finally(() => {
+      setTimeout(() => { autoScanCooldown = false; }, 2500);
+    });
+  }, 1200);
+}
 function stopAutoScanLoop(){
   if(autoScanLoop){ clearInterval(autoScanLoop); autoScanLoop = null; }
   autoScanCooldown = false;
@@ -5686,15 +5730,36 @@ function stopCamera(){
   setScanStatus('Point your camera at a Pokémon card, then tap Identify Card — or upload a photo above.');
 }
 
-function captureAndIdentify(){
-  const video=document.getElementById('scanVideo');
-  if(!video.srcObject){setScanStatus('No camera active.','error');return;}
-  const canvas=document.createElement('canvas');
-  canvas.width=video.videoWidth;
-  canvas.height=video.videoHeight;
-  canvas.getContext('2d').drawImage(video,0,0);
-  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
-  identifyCardFromImage(dataUrl);
+async function captureAndIdentify(){
+  const video = document.getElementById('scanVideo');
+  if (!video.srcObject){
+    setScanStatus('No camera active.', 'error');
+    return;
+  }
+
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+
+  if (!vw || !vh){
+    setScanStatus('Camera is still warming up. Try again in a moment.', 'error');
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Crop roughly to the visible gold scan frame
+  const cropW = Math.floor(vw * 0.62);
+  const cropH = Math.floor(cropW * 1.4); // card ratio
+  const sx = Math.floor((vw - cropW) / 2);
+  const sy = Math.floor((vh - cropH) / 2);
+
+  canvas.width = cropW;
+  canvas.height = cropH;
+  ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+  return identifyCardFromImage(dataUrl);
 }
 
 function onScanFileChosen(input){
@@ -5794,21 +5859,29 @@ async function runGoogleVisionWeb(dataUrl){
 // ── Main identify function (uses Google Vision Web Detection) ─────────────────
 
 async function identifyCardFromImage(dataUrl){
+  if (scanInFlight) return;
+
+  scanInFlight = true;
   dismissScanResult();
-  setScanStatus('Analysing card image…','thinking');
+  document.body.classList.add('scan-busy');
+  setScanStatus('Analysing card image…', 'thinking');
+
   try{
     const parsed = await runGoogleVisionWeb(dataUrl);
 
-    if(!parsed.name && !parsed.number){
-      setScanStatus('Could not identify the card. Try a clearer, well-lit photo with the full card visible.','error');
+    if (!parsed.name && !parsed.number){
+      setScanStatus('Could not identify the card. Try a clearer, well-lit photo with the full card visible.', 'error');
       return;
     }
 
     await showScanResult(parsed);
-  }catch(e){
+  } catch(e){
     const msg = e?.message || String(e);
-    setScanStatus(`Identification failed — ${msg}.`,'error');
+    setScanStatus(`Identification failed — ${msg}.`, 'error');
     console.error(e);
+  } finally {
+    scanInFlight = false;
+    document.body.classList.remove('scan-busy');
   }
 }
 
@@ -6059,33 +6132,59 @@ function isCardAlreadyOwned(card){
 }
 
 function confirmAddCard(){
-  if(!scanPendingCard){setScanStatus('No card to add.','error');return;}
-  const card=scanPendingCard;
-  const sid=card.set?.id;
-  if(!sid){setScanStatus('Could not determine the set for this card.','error');return;}
-  if(!ownedCards[sid])ownedCards[sid]=[];
+  if(!scanPendingCard){
+    setScanStatus('No card to add.','error');
+    return;
+  }
+
+  const card = scanPendingCard;
+  const sid = card.set?.id;
+  if(!sid){
+    setScanStatus('Could not determine the set for this card.','error');
+    return;
+  }
+
+  if(!ownedCards[sid]) ownedCards[sid] = [];
+
   if(!ownedCards[sid].includes(card.id)){
     ownedCards[sid].push(card.id);
-    // Also make sure the set is being tracked
-    if(!isSetTracked(sid))mySets.add(sid);
-    save();updateGlobalStats();renderMySets();
-    // Add to scan history
-    scanHistory.unshift({
-      id:card.id,name:card.name,setName:card.set?.name||'',
-      number:card.number,img:card.images?.small||''
-    });
-    if(scanHistory.length>20)scanHistory.pop();
-    localStorage.setItem('pb_scanHistory',JSON.stringify(scanHistory));
-    renderScanHistory();
-    setScanStatus(`<strong>${card.name}</strong> added to your collection!`,'success');
-    document.getElementById('scanResultAddBtn').textContent='✓ Added!';
-    document.getElementById('scanResultAddBtn').className='scan-result-add already';
-  } else {
-    setScanStatus(`<strong>${card.name}</strong> is already in your collection.`,'success');
-  }
-  scanPendingCard=null;
-}
 
+    if(!isSetTracked(sid)) mySets.add(sid);
+
+    save();
+    updateGlobalStats();
+    renderMySets();
+
+    scanHistory.unshift({
+      id: card.id,
+      name: card.name,
+      setName: card.set?.name || '',
+      number: card.number,
+      img: card.images?.small || ''
+    });
+
+    if(scanHistory.length > 20) scanHistory.pop();
+    localStorage.setItem('pb_scanHistory', JSON.stringify(scanHistory));
+    renderScanHistory();
+
+    setScanStatus(`<strong>${card.name}</strong> added. Ready for the next card.`, 'success');
+  } else {
+    setScanStatus(`<strong>${card.name}</strong> is already in your collection.`, 'success');
+  }
+
+  document.getElementById('scanResultAddBtn').textContent = '✓ Added!';
+  document.getElementById('scanResultAddBtn').className = 'scan-result-add already';
+
+  setTimeout(() => {
+    dismissScanResult();
+    const btn = document.getElementById('scanResultAddBtn');
+    btn.textContent = '✓ Add to Collection';
+    btn.className = 'scan-result-add';
+    setScanStatus('Hold the next card steady in frame.', 'thinking');
+  }, 900);
+
+  scanPendingCard = null;
+}
 function dismissScanResult(){
   document.getElementById('scanResult').classList.remove('visible');
   const list=document.getElementById('scanResultCandidates');
