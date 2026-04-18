@@ -5683,16 +5683,16 @@ function startAutoScanLoop(){
     if (!looksLikeCardIsVisible(video)) return;
 
     const now = Date.now();
-    if (now - lastScanAt < 2500) return;
+    if (now - lastScanAt < 4000) return;
 
     autoScanCooldown = true;
     lastScanAt = now;
 
     setScanStatus('Card detected — analysing…', 'thinking');
     captureAndIdentify().finally(() => {
-      setTimeout(() => { autoScanCooldown = false; }, 2500);
+      setTimeout(() => { autoScanCooldown = false; }, 4000);
     });
-  }, 1200);
+  }, 2000);
 }
 function stopAutoScanLoop(){
   if(autoScanLoop){ clearInterval(autoScanLoop); autoScanLoop = null; }
